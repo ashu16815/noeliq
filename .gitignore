@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Environment variables
+.env
+backend/.env
+frontend/.env
+*.env.local
+
+# Build outputs
+dist/
+build/
+frontend/dist/
+frontend/build/
+backend/dist/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+/tmp/backend.log
+/tmp/reindex.log
+
+# Data files (keep structure, ignore content)
+backend/data/*.json
+!backend/data/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel
+
+# Misc
+*.pem
+*.key
+.cache/

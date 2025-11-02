@@ -1,0 +1,19 @@
+{
+  "name": "noeliq",
+  "version": "1.0.0",
+  "description": "NoelIQ - AI-powered retail sales assistant for Noel Leeming",
+  "private": true,
+  "scripts": {
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && npm install",
+    "install:all": "npm run install:frontend && npm run install:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && node app.js",
+    "start": "cd backend && node app.js"
+  },
+  "keywords": ["retail", "ai", "rag", "azure", "openai"],
+  "author": "",
+  "license": "ISC"
+}
+

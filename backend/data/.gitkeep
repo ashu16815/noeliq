@@ -1,0 +1,5 @@
+# This directory stores JSON data files
+# - sync-status.json: Product sync status
+# - logs.json: Usage logs
+# - parsed-products.json: Parsed product catalogue
+

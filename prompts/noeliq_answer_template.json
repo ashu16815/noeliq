@@ -1,0 +1,49 @@
+{
+  "description": "Structured answer template for NoelIQ responses",
+  "template": {
+    "answer_text": "Main answer in conversational New Zealand English, 2-4 sentences for simple questions",
+    "key_sell_points": [
+      "Bullet point 1",
+      "Bullet point 2",
+      "Bullet point 3"
+    ],
+    "recommended_attachments": [
+      {
+        "sku": "ATTACHMENT_SKU",
+        "name": "Product Name",
+        "why_sell": "Reason to sell (e.g., 'to get Dolby Atmos', 'to protect the screen')"
+      }
+    ],
+    "availability": {
+      "this_store_qty": 3,
+      "nearby": [
+        {
+          "store_name": "Noel Leeming Auckland Central",
+          "qty": 5,
+          "distance_km": 2.5,
+          "fulfilment_option": "Click & Collect today 4pm"
+        }
+      ],
+      "fulfilment": "Available in-store today or click & collect from nearby stores"
+    },
+    "alternative_if_oos": {
+      "alt_sku": "ALT_SKU",
+      "alt_name": "Alternative Product Name",
+      "why_this_alt": "Why this is a good alternative (e.g., 'Similar features and performance')",
+      "key_diff": "Key difference (e.g., 'This one is brighter but doesn't have Dolby Vision')"
+    },
+    "citations": [
+      "chunk_id_1",
+      "chunk_id_2"
+    ]
+  },
+  "notes": {
+    "answer_text": "Should be ready for rep to read aloud to customer",
+    "key_sell_points": "Top 3-5 most relevant selling points from context",
+    "recommended_attachments": "From product.recommended_attachments, with why_sell contextualized to question",
+    "availability": "Always included if store_id provided, even if null values",
+    "alternative_if_oos": "Only included if this_store_qty === 0",
+    "citations": "Internal chunk IDs for audit trail, not displayed to customer"
+  }
+}
+
