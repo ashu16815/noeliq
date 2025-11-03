@@ -5,14 +5,15 @@ echo "🔐 Setting Backend Environment Variables in Vercel"
 echo "=================================================="
 echo ""
 
-# Get the actual values from backend/ENV.md (these are visible in the docs)
-# Note: In production, you should use more secure tokens
+# IMPORTANT: Replace these placeholder values with your actual credentials
+# Get values from your local .env file or Azure Portal
+# Never commit actual API keys to Git!
 
-AZURE_OPENAI_ENDPOINT="https://twg-test-ai1.openai.azure.com/"
+AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
 AZURE_OPENAI_API_KEY="your-api-key-here"
-AZURE_OPENAI_DEPLOYMENT_NAME="gpt-5-mini"
+AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4o"
 AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME="text-embedding-3-large"
-AZURE_SEARCH_ENDPOINT="https://noeliq-ai-search.search.windows.net"
+AZURE_SEARCH_ENDPOINT="https://your-search-service.search.windows.net"
 AZURE_SEARCH_API_KEY="your-search-api-key-here"
 AZURE_SEARCH_INDEX_NAME="noeliq-products"
 PORT="5000"

@@ -19,13 +19,13 @@ Copy the template below into `backend/.env` and fill in your values:
 
 ```bash
 # Azure OpenAI Configuration
-AZURE_OPENAI_ENDPOINT=https://twg-test-ai1.openai.azure.com/
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 AZURE_OPENAI_API_KEY=your-api-key-here
-AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-mini
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
 AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME=text-embedding-3-large
 
 # Azure AI Search Configuration
-AZURE_SEARCH_ENDPOINT=https://noeliq-ai-search.search.windows.net
+AZURE_SEARCH_ENDPOINT=https://your-search-service.search.windows.net
 AZURE_SEARCH_API_KEY=your-search-api-key-here
 AZURE_SEARCH_INDEX_NAME=noeliq-products
 

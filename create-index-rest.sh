@@ -2,7 +2,7 @@
 # Create Azure AI Search index using REST API
 # Usage: ./create-index-rest.sh
 
-ENDPOINT="https://noeliq-ai-search.search.windows.net"
+ENDPOINT="https://your-search-service.search.windows.net"
 INDEX_NAME="noeliq-products"
 API_KEY="your-search-api-key-here"
 API_VERSION="2023-11-01"
