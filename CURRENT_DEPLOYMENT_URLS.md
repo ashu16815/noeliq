@@ -1,27 +1,29 @@
 # Current Vercel Deployment URLs
 
-**Last Updated**: After dynamic URLs deployment
+**Last Updated**: After latest deployment with API fix
 
 ## Backend
-- **Production URL**: `https://backend-e2ghf5yqn-ashu16815-gmailcoms-projects.vercel.app`
-- **API Base URL**: `https://backend-e2ghf5yqn-ashu16815-gmailcoms-projects.vercel.app/api`
-- **Health Check**: `https://backend-e2ghf5yqn-ashu16815-gmailcoms-projects.vercel.app/api/health`
+- **Production URL**: `https://backend-mlg5tr3p8-ashu16815-gmailcoms-projects.vercel.app`
+- **API Base URL**: `https://backend-mlg5tr3p8-ashu16815-gmailcoms-projects.vercel.app/api`
+- **Health Check**: `https://backend-mlg5tr3p8-ashu16815-gmailcoms-projects.vercel.app/api/health`
 
 ## Frontend
-- **Production URL**: `https://frontend-jpy1sh1wh-ashu16815-gmailcoms-projects.vercel.app`
-- **Chat Page**: `https://frontend-jpy1sh1wh-ashu16815-gmailcoms-projects.vercel.app/chat`
+- **Production URL**: `https://frontend-gj9y7oy2g-ashu16815-gmailcoms-projects.vercel.app`
+- **Chat Page**: `https://frontend-gj9y7oy2g-ashu16815-gmailcoms-projects.vercel.app/chat`
 
 ## Environment Variables Needed
 
 ### Backend (`FRONTEND_URL` - NEW!)
 ```
-FRONTEND_URL=https://frontend-jpy1sh1wh-ashu16815-gmailcoms-projects.vercel.app
+FRONTEND_URL=https://frontend-gj9y7oy2g-ashu16815-gmailcoms-projects.vercel.app
 ```
 
 ### Frontend (`VITE_API_BASE_URL`)
 ```
-VITE_API_BASE_URL=https://backend-e2ghf5yqn-ashu16815-gmailcoms-projects.vercel.app/api
+VITE_API_BASE_URL=https://backend-mlg5tr3p8-ashu16815-gmailcoms-projects.vercel.app/api
 ```
+
+**Note**: The code now auto-appends `/api` if missing, but it's still recommended to include it in the env variable.
 
 ### Backend (14 variables)
 See `VERCEL_ENV_VARS.md` for complete list.
