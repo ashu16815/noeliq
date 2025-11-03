@@ -14,18 +14,26 @@ const app = express()
 const PORT = process.env.PORT || 5000
 
 // Middleware
+// Build CORS origins dynamically from environment variables
+const corsOrigins = [
+  'http://localhost:5173',              // Local dev
+  'http://localhost:3000',              // Local dev alt
+]
+
+// Add frontend URL from environment variable if set
+if (process.env.FRONTEND_URL) {
+  corsOrigins.push(process.env.FRONTEND_URL)
+}
+
+// Add Vercel preview patterns (for preview deployments)
+corsOrigins.push(
+  /https:\/\/frontend.*\.vercel\.app$/,  // Frontend preview deployments
+  /https:\/\/noeliq.*\.vercel\.app$/,  // Preview deployments
+  /https:\/\/.*-.*\.vercel\.app$/,     // Vercel preview URLs
+)
+
 app.use(cors({
-  origin: [
-    'http://localhost:5173',              // Local dev
-    'http://localhost:3000',              // Local dev alt
-    'https://noeliq.vercel.app',          // Production frontend
-    'https://frontend-weld-nu-80.vercel.app', // Frontend deployment
-    'https://frontend-k7p72nzus-ashu16815-gmailcoms-projects.vercel.app', // Latest frontend deployment
-    'https://frontend-4q888npxw-ashu16815-gmailcoms-projects.vercel.app', // Previous frontend deployment
-    /https:\/\/frontend.*\.vercel\.app$/,  // Frontend preview deployments
-    /https:\/\/noeliq.*\.vercel\.app$/,  // Preview deployments
-    /https:\/\/.*-.*\.vercel\.app$/,     // Vercel preview URLs
-  ],
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-staff-id', 'x-store-id'],

@@ -22,6 +22,9 @@ AZURE_SEARCH_INDEX_NAME=noeliq-products
 PORT=5000
 NODE_ENV=production
 
+# Frontend URL for CORS (set to your frontend Vercel URL)
+FRONTEND_URL=https://frontend-xxx.vercel.app
+
 # Authentication Tokens (generate secure tokens)
 ADMIN_TOKEN=generate-secure-token-here
 STAFF_TOKEN=generate-secure-token-here
