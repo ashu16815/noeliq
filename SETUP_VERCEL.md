@@ -43,32 +43,42 @@ In the project configuration:
 
 ### 3. Add Backend Environment Variables
 
-**Before deploying**, click **"Environment Variables"** and add:
+**Before deploying**, click **"Environment Variables"** and add ALL required variables:
 
 ```bash
-AZURE_OPENAI_ENDPOINT=https://twg-test-ai1.openai.azure.com/
+# Azure OpenAI Configuration
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 AZURE_OPENAI_API_KEY=your-actual-api-key-here
-AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-mini
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
 AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME=text-embedding-3-large
 
-AZURE_SEARCH_ENDPOINT=https://noeliq-ai-search.search.windows.net
+# Azure AI Search Configuration
+AZURE_SEARCH_ENDPOINT=https://your-search-service.search.windows.net
 AZURE_SEARCH_API_KEY=your-actual-search-api-key-here
 AZURE_SEARCH_INDEX_NAME=noeliq-products
 
+# Server Configuration
 PORT=5000
 NODE_ENV=production
 
+# Authentication Tokens (generate secure tokens)
 ADMIN_TOKEN=generate-secure-admin-token
 STAFF_TOKEN=generate-secure-staff-token
 
+# RAG Configuration
 RAG_CHUNK_LIMIT=5
 USE_OPTIMIZED_RAG=false
+
+# Turn Orchestrator (recommended for production)
+USE_TURN_ORCHESTRATOR=true
 ```
 
 **Important:**
 - Click **"Add"** after each variable
 - Select **Production**, **Preview**, and **Development** for each
 - Replace `your-actual-*-key-here` with real values from your `.env` file
+- Generate secure tokens: `openssl rand -hex 32` (for ADMIN_TOKEN and STAFF_TOKEN)
+- See `VERCEL_ENV_VARS.md` for optional advanced configuration variables
 
 ### 4. Deploy Backend
 

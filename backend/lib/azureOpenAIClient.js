@@ -36,20 +36,53 @@ export const chatClient = {
     if (!clientInstance || !deploymentName) {
       throw new Error('Azure OpenAI client not configured')
     }
+    
+    const startTime = Date.now()
+    const logId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+    
     try {
       // Extract maxTokens and temperature - GPT-5 doesn't support custom temperature
       const { maxTokens, temperature, ...restOptions } = options
+      const maxCompletionTokens = maxTokens || 1000
+      
+      // Log chat request
+      const messageCount = messages.length
+      const lastUserMessage = messages.filter(m => m.role === 'user').pop()?.content?.substring(0, 100) || ''
+      console.log(`[Azure OpenAI] [${logId}] 💬 CHAT REQUEST`)
+      console.log(`[Azure OpenAI] [${logId}]   Model: ${deploymentName}`)
+      console.log(`[Azure OpenAI] [${logId}]   Messages: ${messageCount}`)
+      console.log(`[Azure OpenAI] [${logId}]   Last user message: "${lastUserMessage}${lastUserMessage.length >= 100 ? '...' : ''}"`)
+      console.log(`[Azure OpenAI] [${logId}]   Max tokens: ${maxCompletionTokens}`)
+      
       // GPT-5 models use max_completion_tokens instead of max_tokens
       // GPT-5 only supports temperature=1 (default), so don't pass it
       const response = await clientInstance.chat.completions.create({
         model: deploymentName,
         messages,
-        max_completion_tokens: maxTokens || 1000, // GPT-5 uses max_completion_tokens
+        max_completion_tokens: maxCompletionTokens, // GPT-5 uses max_completion_tokens
         ...restOptions, // Spread remaining options (without maxTokens or temperature)
       })
+      
+      const duration = Date.now() - startTime
+      const answerText = response.choices[0]?.message?.content || ''
+      const finishReason = response.choices[0]?.finish_reason || 'unknown'
+      const usage = response.usage || {}
+      
+      // Log chat response
+      console.log(`[Azure OpenAI] [${logId}] ✅ CHAT SUCCESS`)
+      console.log(`[Azure OpenAI] [${logId}]   Response length: ${answerText.length} chars`)
+      console.log(`[Azure OpenAI] [${logId}]   Finish reason: ${finishReason}`)
+      if (usage.prompt_tokens || usage.completion_tokens || usage.total_tokens) {
+        console.log(`[Azure OpenAI] [${logId}]   Tokens: prompt=${usage.prompt_tokens || 0}, completion=${usage.completion_tokens || 0}, total=${usage.total_tokens || 0}`)
+      }
+      console.log(`[Azure OpenAI] [${logId}]   Duration: ${duration}ms`)
+      
       return response
     } catch (error) {
-      console.error('Azure OpenAI Chat API Error:', error)
+      const duration = Date.now() - startTime
+      console.error(`[Azure OpenAI] [${logId}] ❌ CHAT ERROR`)
+      console.error(`[Azure OpenAI] [${logId}]   Error: ${error.message}`)
+      console.error(`[Azure OpenAI] [${logId}]   Duration: ${duration}ms`)
       throw new Error(`OpenAI API error: ${error.message}`)
     }
   },
@@ -61,9 +94,20 @@ export const embeddingClient = {
     if (!endpoint || !apiKey || !embeddingDeploymentName) {
       throw new Error('Azure OpenAI client not configured')
     }
+    
+    const startTime = Date.now()
+    const logId = `embed_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+    
     try {
       // Handle both string and array of strings
       const inputs = Array.isArray(input) ? input : [input]
+      
+      // Log embedding request
+      console.log(`[Azure OpenAI] [${logId}] 🔢 EMBEDDING REQUEST`)
+      console.log(`[Azure OpenAI] [${logId}]   Model: ${embeddingDeploymentName}`)
+      console.log(`[Azure OpenAI] [${logId}]   Inputs: ${inputs.length}`)
+      const previewText = typeof inputs[0] === 'string' ? inputs[0].substring(0, 80) : '[...]'
+      console.log(`[Azure OpenAI] [${logId}]   Preview: "${previewText}${inputs[0]?.length > 80 ? '...' : ''}"`)
       
       // Create separate client for embeddings with correct deployment
       const embeddingClientInstance = new OpenAI({
@@ -77,9 +121,26 @@ export const embeddingClient = {
         model: embeddingDeploymentName,
         input: inputs,
       })
+      
+      const duration = Date.now() - startTime
+      const usage = response.usage || {}
+      const embeddingLength = response.data?.[0]?.embedding?.length || 0
+      
+      // Log embedding response
+      console.log(`[Azure OpenAI] [${logId}] ✅ EMBEDDING SUCCESS`)
+      console.log(`[Azure OpenAI] [${logId}]   Embeddings: ${response.data?.length || 0}`)
+      console.log(`[Azure OpenAI] [${logId}]   Dimensions: ${embeddingLength}`)
+      if (usage.prompt_tokens || usage.total_tokens) {
+        console.log(`[Azure OpenAI] [${logId}]   Tokens: prompt=${usage.prompt_tokens || 0}, total=${usage.total_tokens || 0}`)
+      }
+      console.log(`[Azure OpenAI] [${logId}]   Duration: ${duration}ms`)
+      
       return response
     } catch (error) {
-      console.error('Azure OpenAI Embedding API Error:', error)
+      const duration = Date.now() - startTime
+      console.error(`[Azure OpenAI] [${logId}] ❌ EMBEDDING ERROR`)
+      console.error(`[Azure OpenAI] [${logId}]   Error: ${error.message}`)
+      console.error(`[Azure OpenAI] [${logId}]   Duration: ${duration}ms`)
       throw new Error(`Embedding API error: ${error.message}`)
     }
   },

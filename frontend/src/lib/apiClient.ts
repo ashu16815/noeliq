@@ -7,7 +7,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 second timeout (queries can take 6-10 seconds)
+  timeout: 60000, // 60 second timeout (turn orchestrator with multiple LLM calls can take 20-40 seconds)
 })
 
 // Request interceptor for auth (MVP: simple token)

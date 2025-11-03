@@ -19,28 +19,68 @@ const ragRetrievalOptimizedService = {
   /**
    * Main retrieval method with full optimization pipeline
    */
-  async retrieveRelevantChunks({ sku, question, limit = 10, filters = {} }) {
+  async retrieveRelevantChunks({ sku, question, limit = 10, filters = {}, customer_intent = null, compare_list = [] }) {
     try {
-      // Step 1: Generate embedding for the question
-      const questionEmbedding = await this.generateQuestionEmbedding(question)
+      // Step 1: Build enhanced query that includes customer intent
+      let enhancedQuestion = question
+      if (customer_intent) {
+        // Append intent summary to question for better retrieval
+        enhancedQuestion = `${question} ${customer_intent}`
+      }
 
-      // Step 2: Build hybrid query (vector + keyword search)
-      const results = await this.hybridSearch(question, questionEmbedding, sku, filters)
+      // Step 2: Generate embedding for the enhanced question
+      const questionEmbedding = await this.generateQuestionEmbedding(enhancedQuestion)
 
-      // Step 3: Filter by score threshold
-      const filteredResults = this.filterByScore(results, CONFIG.chunk_score_threshold)
+      // Step 3: Handle compare_list or general recommendation queries
+      let allResults = []
+      if (compare_list && compare_list.length > 0) {
+        // Retrieve chunks for each SKU in compare_list
+        for (const compareSku of compare_list) {
+          const results = await this.hybridSearch(enhancedQuestion, questionEmbedding, compareSku, filters)
+          allResults.push(...results)
+        }
+        // Also retrieve for primary SKU if it's not in compare_list
+        if (sku && !compare_list.includes(sku)) {
+          const primaryResults = await this.hybridSearch(enhancedQuestion, questionEmbedding, sku, filters)
+          allResults.push(...primaryResults)
+        }
+      } else if (!sku) {
+        // No SKU filter = general recommendation query - retrieve without SKU filter to get multiple options
+        // Retrieve more results to ensure we get diverse SKUs
+        allResults = await this.hybridSearch(enhancedQuestion, questionEmbedding, null, filters)
+        console.log(`[RAG] General query - retrieved ${allResults.length} chunks from all SKUs`)
+      } else {
+        // Normal single-SKU retrieval
+        allResults = await this.hybridSearch(enhancedQuestion, questionEmbedding, sku, filters)
+      }
 
-      // Step 4: Rerank, deduplicate, and diversify
-      const rerankedChunks = this.rerankAndDiversify(filteredResults, CONFIG.rerank_max_chunks || limit)
+      // Step 4: Filter by score threshold
+      const filteredResults = this.filterByScore(allResults, CONFIG.chunk_score_threshold)
 
-      // Step 5: Optionally summarize if context is too large
+      // Step 5: Rerank, deduplicate, and diversify (ensures diversity across SKUs for comparison)
+      const rerankedChunks = this.rerankAndDiversify(filteredResults, CONFIG.rerank_max_chunks || limit, compare_list)
+
+      // Step 6: Optionally summarize if context is too large
       const finalChunks = await this.condenseContextIfNeeded(rerankedChunks, CONFIG.max_context_tokens)
+
+      // Step 7: If no chunks found and we have customer intent, add intent as synthetic chunk
+      if (finalChunks.length === 0 && customer_intent) {
+        return [{
+          section_title: 'Customer Intent',
+          section_body: customer_intent,
+          sku: sku || (compare_list && compare_list.length > 0 ? compare_list[0] : null),
+          chunk_id: 'intent_synthetic',
+          section_type: 'Intent',
+          importance_score: 0.8,
+          search_score: 0.8,
+        }]
+      }
 
       return finalChunks
     } catch (error) {
       console.error('Error in optimized retrieval:', error)
       // Fallback to simple retrieval
-      return this.fallbackRetrieval(question, sku, limit)
+      return this.fallbackRetrieval(question, sku, limit, customer_intent)
     }
   },
 
@@ -56,16 +96,18 @@ const ragRetrievalOptimizedService = {
       filterParts.push(`sku eq '${sku}'`)
     }
     
-    // Add metadata filters if provided
-    if (filters.brand) {
-      filterParts.push(`brand eq '${filters.brand}'`)
+    // Add metadata filters if provided (only for fields that exist in index schema)
+    // Note: category, brand, size_inches don't exist in index schema - can't filter by them
+    // Price filtering: use current_price or list_price fields that exist in schema
+    if (filters.price_max) {
+      // Filter by list_price if available (prefer list_price over current_price for consistent filtering)
+      filterParts.push(`list_price le ${filters.price_max}`)
     }
-    if (filters.category) {
-      filterParts.push(`category eq '${filters.category}'`)
-    }
-    if (filters.importance_score) {
-      filterParts.push(`importance_score ge ${filters.importance_score}`)
-    }
+    // Note: Only use filters for fields that definitely exist in the deployed index
+    // importance_score and section_type may not be in actual deployed index - commented out for safety
+    // if (filters.importance_score) {
+    //   filterParts.push(`importance_score ge ${filters.importance_score || 0.5}`)
+    // }
     
     if (filterParts.length > 0) {
       filterString = filterParts.join(' and ')
@@ -94,8 +136,10 @@ const ragRetrievalOptimizedService = {
         // Top results (hybrid will combine both search types)
         top: CONFIG.azure_search_top,
         
-        // Select relevant fields
-        select: ['sku', 'section_title', 'section_body', 'section_type', 'importance_score', '@search.score'],
+        // Select relevant fields (only fields that exist in actual deployed index)
+        // Note: @search.score is automatically included, don't add it to select
+        // Using only core fields that definitely exist: sku, section_title, section_body, chunk_id
+        select: ['sku', 'section_title', 'section_body', 'chunk_id'],
       })
 
     return searchResults.map((result) => ({
@@ -118,8 +162,11 @@ const ragRetrievalOptimizedService = {
 
   /**
    * Rerank, deduplicate, and ensure diversity across SKUs and section types
+   * @param {Array} results - Array of chunk results
+   * @param {number} maxChunks - Maximum chunks to return
+   * @param {Array} compare_list - List of SKUs being compared (for ensuring diversity across SKUs)
    */
-  rerankAndDiversify(results, maxChunks) {
+  rerankAndDiversify(results, maxChunks, compare_list = []) {
     // Group by SKU and section_type to avoid duplicates
     const grouped = {}
     results.forEach(chunk => {
@@ -133,35 +180,62 @@ const ragRetrievalOptimizedService = {
     const uniqueChunks = Object.values(grouped)
       .sort((a, b) => b.search_score - a.search_score)
 
-    // Ensure diversity: prioritize different section types
+    // Ensure diversity: prioritize different section types and SKUs
     const finalChunks = []
     const sectionTypesSeen = new Set()
     const skusSeen = new Set()
+    const sectionTypesBySku = {} // Track section types per SKU
 
-    // First pass: get one chunk per SKU-section combination, prioritizing high scores
+    // If comparing, ensure we get chunks from each SKU
+    const targetSkus = compare_list.length > 0 ? compare_list : [...new Set(uniqueChunks.map(c => c.sku).filter(Boolean))]
+    
+    // First pass: get one chunk per section type per SKU (for comparison)
+    if (compare_list.length > 0) {
+      // For comparison, prioritize getting same section types from different SKUs
+      const sectionTypes = [...new Set(uniqueChunks.map(c => c.section_type || c.section_title).filter(Boolean))]
+      
+      for (const sectionType of sectionTypes) {
+        if (finalChunks.length >= maxChunks) break
+        
+        // Get top chunk for each SKU with this section type
+        for (const sku of targetSkus) {
+          if (finalChunks.length >= maxChunks) break
+          
+          const chunk = uniqueChunks.find(c => 
+            c.sku === sku && 
+            (c.section_type || c.section_title) === sectionType &&
+            !finalChunks.find(fc => fc.sku === c.sku && (fc.section_type || fc.section_title) === sectionType)
+          )
+          
+          if (chunk) {
+            finalChunks.push(chunk)
+            sectionTypesSeen.add(sectionType)
+            skusSeen.add(sku)
+          }
+        }
+      }
+    }
+
+    // Second pass: fill remaining slots with highest scoring diverse chunks
     for (const chunk of uniqueChunks) {
       if (finalChunks.length >= maxChunks) break
       
       const sectionKey = chunk.section_type || chunk.section_title
       const skuKey = chunk.sku
+      const key = `${chunk.sku}_${chunk.section_type}`
       
-      // Prioritize chunks from different sections and SKUs
+      // Skip if already included
+      if (finalChunks.find(c => `${c.sku}_${c.section_type}` === key)) {
+        continue
+      }
+      
+      // Prioritize diversity
       const isDiverse = !sectionTypesSeen.has(sectionKey) || !skusSeen.has(skuKey)
       
-      if (isDiverse || finalChunks.length < maxChunks / 2) {
+      if (isDiverse || finalChunks.length < maxChunks) {
         finalChunks.push(chunk)
         sectionTypesSeen.add(sectionKey)
         skusSeen.add(skuKey)
-      }
-    }
-
-    // Second pass: fill remaining slots with highest scoring chunks
-    for (const chunk of uniqueChunks) {
-      if (finalChunks.length >= maxChunks) break
-      
-      const key = `${chunk.sku}_${chunk.section_type}`
-      if (!finalChunks.find(c => `${c.sku}_${c.section_type}` === key)) {
-        finalChunks.push(chunk)
       }
     }
 
@@ -237,9 +311,16 @@ Return a concise but comprehensive summary that preserves all factual informatio
   /**
    * Fallback to simple retrieval if optimized fails
    */
-  async fallbackRetrieval(question, sku, limit) {
+  async fallbackRetrieval(question, sku, limit, customer_intent = null) {
     console.warn('[RAG] Falling back to simple retrieval')
-    const questionEmbedding = await this.generateQuestionEmbedding(question)
+    
+    // Enhance question with intent if available
+    let enhancedQuestion = question
+    if (customer_intent) {
+      enhancedQuestion = `${question} ${customer_intent}`
+    }
+    
+    const questionEmbedding = await this.generateQuestionEmbedding(enhancedQuestion)
     const filter = sku ? `sku eq '${sku}'` : null
 
     const results = await searchClient.search('', {
@@ -257,12 +338,27 @@ Return a concise but comprehensive summary that preserves all factual informatio
       top: limit,
     })
 
-    return results.map((chunk) => ({
+    const mappedResults = results.map((chunk) => ({
       section_title: chunk.section_title,
       section_body: chunk.section_body,
       sku: chunk.sku,
       chunk_id: chunk.chunk_id,
     }))
+
+    // If no chunks found and we have customer intent, add intent as synthetic chunk
+    if (mappedResults.length === 0 && customer_intent) {
+      return [{
+        section_title: 'Customer Intent',
+        section_body: customer_intent,
+        sku: sku || null,
+        chunk_id: 'intent_synthetic',
+        section_type: 'Intent',
+        importance_score: 0.8,
+        search_score: 0.8,
+      }]
+    }
+
+    return mappedResults
   },
 
   /**

@@ -30,6 +30,9 @@ export const searchClient = {
       throw new Error('Azure AI Search client not configured')
     }
 
+    const startTime = Date.now()
+    const logId = `search_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+    
     try {
       const searchOptions = {
         vectorSearchOptions: options.vectorSearchOptions,
@@ -38,14 +41,32 @@ export const searchClient = {
         ...options,
       }
 
+      // Log search request
+      console.log(`[Azure AI Search] [${logId}] 🔍 SEARCH REQUEST`)
+      console.log(`[Azure AI Search] [${logId}]   Query: "${searchText?.substring(0, 100)}${searchText?.length > 100 ? '...' : ''}"`)
+      console.log(`[Azure AI Search] [${logId}]   Options: top=${searchOptions.top}, filter=${searchOptions.filter ? 'yes' : 'no'}, vector=${searchOptions.vectorSearchOptions ? 'yes' : 'no'}`)
+
       const results = await clientInstance.search(searchText, searchOptions)
       const documents = []
+      let resultCount = 0
       for await (const result of results.results) {
         documents.push(result.document)
+        resultCount++
       }
+      
+      const duration = Date.now() - startTime
+      
+      // Log search response
+      console.log(`[Azure AI Search] [${logId}] ✅ SEARCH SUCCESS`)
+      console.log(`[Azure AI Search] [${logId}]   Results: ${resultCount} documents`)
+      console.log(`[Azure AI Search] [${logId}]   Duration: ${duration}ms`)
+      
       return documents
     } catch (error) {
-      console.error('Azure AI Search Error:', error)
+      const duration = Date.now() - startTime
+      console.error(`[Azure AI Search] [${logId}] ❌ SEARCH ERROR`)
+      console.error(`[Azure AI Search] [${logId}]   Error: ${error.message}`)
+      console.error(`[Azure AI Search] [${logId}]   Duration: ${duration}ms`)
       throw new Error(`Search API error: ${error.message}`)
     }
   },
@@ -56,12 +77,26 @@ export const searchClient = {
       throw new Error('Azure AI Search client not configured')
     }
 
+    const startTime = Date.now()
+    const logId = `upload_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+
     try {
+      console.log(`[Azure AI Search] [${logId}] 📤 UPLOAD REQUEST`)
+      console.log(`[Azure AI Search] [${logId}]   Documents: ${documents.length}`)
+      
       const result = await clientInstance.uploadDocuments(documents)
-      console.log(`✅ Uploaded ${documents.length} documents to Azure AI Search`)
+      const duration = Date.now() - startTime
+      
+      console.log(`[Azure AI Search] [${logId}] ✅ UPLOAD SUCCESS`)
+      console.log(`[Azure AI Search] [${logId}]   Uploaded: ${documents.length} documents`)
+      console.log(`[Azure AI Search] [${logId}]   Duration: ${duration}ms`)
+      
       return result
     } catch (error) {
-      console.error('Azure AI Search Upload Error:', error)
+      const duration = Date.now() - startTime
+      console.error(`[Azure AI Search] [${logId}] ❌ UPLOAD ERROR`)
+      console.error(`[Azure AI Search] [${logId}]   Error: ${error.message}`)
+      console.error(`[Azure AI Search] [${logId}]   Duration: ${duration}ms`)
       throw new Error(`Search upload error: ${error.message}`)
     }
   },

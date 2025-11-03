@@ -4,6 +4,7 @@ import StoreSelector from '../components/StoreSelector'
 import MessageComposer from '../components/MessageComposer'
 import NoelIQBubble from '../components/NoelIQBubble'
 import UserBubble from '../components/UserBubble'
+import LoadingProgress from '../components/LoadingProgress'
 import { api, AskResponse } from '../lib/apiClient'
 import { motion } from 'framer-motion'
 
@@ -20,6 +21,7 @@ export default function ChatScreen() {
   const [isLoading, setIsLoading] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [activeSku, setActiveSku] = useState<string | null>(null)
+  const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom when new messages arrive
@@ -44,6 +46,7 @@ export default function ChatScreen() {
     }
     setMessages((prev) => [...prev, newMessage])
     setIsLoading(true)
+    setLoadingStartTime(Date.now())
 
     try {
       // Get store_id from localStorage (set by StoreSelector)
@@ -105,6 +108,7 @@ export default function ChatScreen() {
       )
     } finally {
       setIsLoading(false)
+      setLoadingStartTime(null)
     }
   }
 
@@ -155,11 +159,7 @@ export default function ChatScreen() {
                     <NoelIQBubble answer={message.answer} />
                   )}
                   {isLoading && message.id === messages[messages.length - 1]?.id && !message.answer && (
-                    <div className="flex items-center gap-2 text-gray-400 text-sm">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
-                    </div>
+                    <LoadingProgress startTime={loadingStartTime} />
                   )}
                 </div>
               ))}

@@ -7,6 +7,7 @@ import similarProductService from '../services/similarProductService.js'
 import generationService from '../services/generationService.js'
 import loggingService from '../services/loggingService.js'
 import conversationService from '../services/conversationService.js'
+import turnOrchestratorService from '../services/turnOrchestratorService.js'
 
 const router = express.Router()
 
@@ -29,7 +30,51 @@ router.post('/', authenticate, async (req, res) => {
 
     // Get or create conversation context
     const conversationId = conversation_id || `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    
+
+    // Check if turn orchestrator is enabled
+    const useTurnOrchestrator = process.env.USE_TURN_ORCHESTRATOR === 'true'
+
+    if (useTurnOrchestrator) {
+      // Use new turn orchestrator pipeline
+      console.log(`[Query] Using turn orchestrator pipeline`)
+      
+      try {
+        const result = await turnOrchestratorService.processTurn({
+          conversation_id: conversationId,
+          store_id,
+          user_text: question,
+          sku: providedSku,
+        })
+
+        // Return structured response
+        res.json({
+          conversation_id: result.conversation_id || conversationId,
+          summary: result.summary || "Let me check that for you.",
+          key_points: result.key_points || [],
+          attachments: result.attachments || [],
+          stock_and_fulfilment: result.stock_and_fulfilment || {
+            this_store_qty: null,
+            nearby: [],
+            fulfilment_summary: null,
+          },
+          alternative_if_oos: result.alternative_if_oos || {
+            alt_sku: null,
+            alt_name: null,
+            why_this_alt: null,
+            key_diff: null,
+          },
+          sentiment_note: result.sentiment_note || null,
+          compliance_flags: result.compliance_flags || [],
+          citations: result.citations || [],
+        })
+        return
+      } catch (orchestratorError) {
+        console.error('[Query] Turn orchestrator error, falling back to legacy flow:', orchestratorError)
+        // Fall through to legacy flow
+      }
+    }
+
+    // Legacy flow (existing implementation)
     // Infer SKU from context if not provided (e.g., "cheaper?", "has Dolby Atmos?")
     const sku = providedSku || conversationService.inferSKUFromContext(conversationId, question, providedSku)
 
@@ -44,6 +89,16 @@ router.post('/', authenticate, async (req, res) => {
       conversation_id,
     })
 
+    // Step 0.5: Get customer intent from conversation context, extract intent from current question, and merge
+    const existingIntent = conversationService.getCustomerIntent(conversationId)
+    const currentQuestionIntent = conversationService.extractCustomerIntent(question)
+    const mergedIntent = conversationService.mergeIntent(existingIntent, currentQuestionIntent)
+    const intentSummary = conversationService.buildIntentSummary(mergedIntent)
+    
+    if (intentSummary) {
+      console.log(`[Query] Customer intent: ${intentSummary}`)
+    }
+
     // Step 1: Retrieve relevant chunks via RAG (use optimized service if enabled)
     const useOptimizedRAG = process.env.USE_OPTIMIZED_RAG === 'true'
     const chunkLimit = parseInt(process.env.RAG_CHUNK_LIMIT || '5', 10)
@@ -56,11 +111,13 @@ router.post('/', authenticate, async (req, res) => {
           question,
           limit: chunkLimit,
           filters: {}, // Can add brand, category filters here
+          customer_intent: intentSummary,
         })
       : await ragRetrievalService.retrieveRelevantChunks({
           sku,
           question,
           limit: chunkLimit,
+          customer_intent: intentSummary,
         })
     
     console.log(`[Query] Found ${relevantChunks.length} relevant chunks (requested: ${chunkLimit})`)
@@ -127,6 +184,7 @@ router.post('/', authenticate, async (req, res) => {
       availability,
       alternative,
       conversationContext: conversationHistory,
+      customer_intent: intentSummary,
     })
 
     // Step 7: Update conversation context (use effectiveSku for tracking)
