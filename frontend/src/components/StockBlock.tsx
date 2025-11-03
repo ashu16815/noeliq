@@ -1,5 +1,5 @@
 import { Package, MapPin, CheckCircle2, XCircle } from 'lucide-react'
-import { Availability, AlternativeIfOOS } from '../lib/apiClient'
+import { Availability, AlternativeIfOOS, AvailabilityNearby } from '../lib/apiClient'
 
 interface StockBlockProps {
   availability: Availability
@@ -58,7 +58,7 @@ export default function StockBlock({ availability, alternative }: StockBlockProp
               Nearby Stores
             </p>
             <div className="space-y-2">
-              {availability.nearby.map((store, idx) => (
+              {availability.nearby.map((store: AvailabilityNearby, idx: number) => (
                 <div
                   key={idx}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"

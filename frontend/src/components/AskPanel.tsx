@@ -15,7 +15,7 @@ export default function AskPanel({ onAsk, isLoading = false }: AskPanelProps) {
   const [isSearching, setIsSearching] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<ProductSearchResult | null>(null)
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Debounced product search

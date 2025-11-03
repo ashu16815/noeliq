@@ -57,13 +57,14 @@ export default function SalesAssistantView() {
       })
       // Add error answer
       const errorAnswer: AskResponse = {
-        answer_text: "I'm sorry, I encountered an error. Let me check that for you.",
-        key_sell_points: [],
-        recommended_attachments: [],
-        availability: {
+        conversation_id: `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        summary: "I'm sorry, I encountered an error. Let me check that for you.",
+        key_points: [],
+        attachments: [],
+        stock_and_fulfilment: {
           this_store_qty: null,
           nearby: [],
-          fulfilment: '',
+          fulfilment_summary: '',
         },
         alternative_if_oos: {
           alt_sku: null,
@@ -71,6 +72,8 @@ export default function SalesAssistantView() {
           why_this_alt: null,
           key_diff: null,
         },
+        sentiment_note: null,
+        compliance_flags: [],
         citations: [],
       }
       setMessages((prev) =>

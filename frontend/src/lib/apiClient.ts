@@ -67,6 +67,13 @@ export interface AlternativeIfOOS {
   key_diff: string | null
 }
 
+// Alias for compatibility with StockBlock component
+export interface Availability {
+  this_store_qty: number | null
+  nearby: AvailabilityNearby[]
+  fulfilment: string
+}
+
 export interface AskResponse {
   conversation_id: string
   summary: string

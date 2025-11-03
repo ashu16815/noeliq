@@ -19,18 +19,15 @@ const PROGRESS_STEPS: ProgressStep[] = [
 
 export default function LoadingProgress({ startTime }: LoadingProgressProps) {
   const [currentStep, setCurrentStep] = useState(0)
-  const [elapsedTime, setElapsedTime] = useState(0)
 
   useEffect(() => {
     if (!startTime) {
       setCurrentStep(0)
-      setElapsedTime(0)
       return
     }
 
     const interval = setInterval(() => {
       const elapsed = (Date.now() - startTime) / 1000
-      setElapsedTime(elapsed)
 
       // Determine which step to show based on elapsed time
       let stepIndex = 0

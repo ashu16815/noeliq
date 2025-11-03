@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Barcode, Gamepad2, Briefcase, DollarSign, Shuffle } from 'lucide-react'
-import { motion } from 'framer-motion'
 
 interface MessageComposerProps {
   onSend: (message: string, sku?: string) => void

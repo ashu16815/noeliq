@@ -17,16 +17,16 @@ export default function AnswerCard({ answer }: AnswerCardProps) {
           <h2 className="text-xl font-semibold text-noel-dark">Answer</h2>
         </div>
         <p className="text-noel-dark leading-relaxed whitespace-pre-line">
-          {answer.answer_text}
+          {answer.summary}
         </p>
       </div>
 
       {/* Key Sell Points */}
-      {answer.key_sell_points && answer.key_sell_points.length > 0 && (
+      {answer.key_points && answer.key_points.length > 0 && (
         <div>
           <h3 className="text-lg font-medium text-noel-dark mb-3">Key Points</h3>
           <ul className="space-y-2">
-            {answer.key_sell_points.map((point, idx) => (
+            {answer.key_points.map((point: string, idx: number) => (
               <li key={idx} className="flex items-start gap-2 text-noel-dark">
                 <span className="text-noel-red mt-1">•</span>
                 <span>{point}</span>
@@ -38,17 +38,21 @@ export default function AnswerCard({ answer }: AnswerCardProps) {
 
       {/* Stock Information */}
       <StockBlock
-        availability={answer.availability}
+        availability={{
+          this_store_qty: answer.stock_and_fulfilment.this_store_qty,
+          nearby: answer.stock_and_fulfilment.nearby,
+          fulfilment: answer.stock_and_fulfilment.fulfilment_summary,
+        }}
         alternative={answer.alternative_if_oos}
       />
 
       {/* Attachment Recommendations */}
-      {answer.recommended_attachments && answer.recommended_attachments.length > 0 && (
-        <AttachmentsBlock attachments={answer.recommended_attachments} />
+      {answer.attachments && answer.attachments.length > 0 && (
+        <AttachmentsBlock attachments={answer.attachments} />
       )}
 
       {/* Error or Uncertain Response Indicator */}
-      {answer.answer_text.includes('Let me check that for you') && (
+      {answer.summary.includes('Let me check that for you') && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-yellow-800">

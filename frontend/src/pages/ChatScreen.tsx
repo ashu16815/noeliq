@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import { Settings, MessageSquare, Package } from 'lucide-react'
+import { Settings, MessageSquare } from 'lucide-react'
 import StoreSelector from '../components/StoreSelector'
 import MessageComposer from '../components/MessageComposer'
 import NoelIQBubble from '../components/NoelIQBubble'
 import UserBubble from '../components/UserBubble'
 import LoadingProgress from '../components/LoadingProgress'
 import { api, AskResponse } from '../lib/apiClient'
-import { motion } from 'framer-motion'
 
 interface Message {
   id: string

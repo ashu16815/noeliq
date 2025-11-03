@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Upload, RefreshCw, AlertCircle, CheckCircle2, Clock } from 'lucide-react'
+import { RefreshCw, AlertCircle, CheckCircle2, Clock } from 'lucide-react'
 import XMLUpload from '../components/Admin/XMLUpload'
 import SyncTable from '../components/Admin/SyncTable'
 import { api } from '../lib/apiClient'
