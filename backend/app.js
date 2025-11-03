@@ -19,7 +19,8 @@ app.use(cors({
     'http://localhost:5173',              // Local dev
     'http://localhost:3000',              // Local dev alt
     'https://noeliq.vercel.app',          // Production frontend
-    'https://frontend-weld-nu-80.vercel.app', // Current frontend deployment
+    'https://frontend-weld-nu-80.vercel.app', // Frontend deployment
+    'https://frontend-k7p72nzus-ashu16815-gmailcoms-projects.vercel.app', // Latest frontend deployment
     'https://frontend-4q888npxw-ashu16815-gmailcoms-projects.vercel.app', // Previous frontend deployment
     /https:\/\/frontend.*\.vercel\.app$/,  // Frontend preview deployments
     /https:\/\/noeliq.*\.vercel\.app$/,  // Preview deployments
