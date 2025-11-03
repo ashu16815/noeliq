@@ -19,6 +19,8 @@ app.use(cors({
     'http://localhost:5173',              // Local dev
     'http://localhost:3000',              // Local dev alt
     'https://noeliq.vercel.app',          // Production frontend
+    'https://frontend-4q888npxw-ashu16815-gmailcoms-projects.vercel.app', // Current frontend deployment
+    /https:\/\/frontend.*\.vercel\.app$/,  // Frontend preview deployments
     /https:\/\/noeliq.*\.vercel\.app$/,  // Preview deployments
     /https:\/\/.*-.*\.vercel\.app$/,     // Vercel preview URLs
   ],
@@ -56,9 +58,13 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' })
 })
 
-app.listen(PORT, () => {
-  console.log(`NoelIQ backend server running on port ${PORT}`)
-})
+// Only start server if not in Vercel serverless environment
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`NoelIQ backend server running on port ${PORT}`)
+  })
+}
 
+// Export for Vercel serverless
 export default app
 
