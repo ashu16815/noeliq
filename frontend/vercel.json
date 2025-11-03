@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://noeliq-api.vercel.app/api/$1"
+      "destination": "https://backend-ovaqgrhci-ashu16815-gmailcoms-projects.vercel.app/api/$1"
     },
     {
       "source": "/(.*)",
