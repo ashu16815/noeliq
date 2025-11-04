@@ -1,27 +1,29 @@
 # Current Vercel Deployment URLs
 
-**Last Updated**: Latest deployment (with auth token auto-initialization fix)
+**Last Updated**: Latest deployment (all env vars configured and deployed)
 
 ## Backend
-- **Production URL**: `https://backend-qi098tcez-ashu16815-gmailcoms-projects.vercel.app`
-- **API Base URL**: `https://backend-qi098tcez-ashu16815-gmailcoms-projects.vercel.app/api`
-- **Health Check**: `https://backend-qi098tcez-ashu16815-gmailcoms-projects.vercel.app/api/health`
+- **Production URL**: `https://backend-3g0y90ldy-ashu16815-gmailcoms-projects.vercel.app`
+- **API Base URL**: `https://backend-3g0y90ldy-ashu16815-gmailcoms-projects.vercel.app/api`
+- **Health Check**: `https://backend-3g0y90ldy-ashu16815-gmailcoms-projects.vercel.app/api/health`
 
 ## Frontend
-- **Production URL**: `https://frontend-6f7pmmo7l-ashu16815-gmailcoms-projects.vercel.app`
-- **Chat Page**: `https://frontend-6f7pmmo7l-ashu16815-gmailcoms-projects.vercel.app/chat`
+- **Production URL**: `https://frontend-dp9qq0o34-ashu16815-gmailcoms-projects.vercel.app`
+- **Chat Page**: `https://frontend-dp9qq0o34-ashu16815-gmailcoms-projects.vercel.app/chat`
 
 ## Environment Variables Needed
 
-### Backend (`FRONTEND_URL` - NEW!)
+### Backend (`FRONTEND_URL`)
 ```
-FRONTEND_URL=https://frontend-6f7pmmo7l-ashu16815-gmailcoms-projects.vercel.app
+FRONTEND_URL=https://frontend-dp9qq0o34-ashu16815-gmailcoms-projects.vercel.app
 ```
+✅ **Updated and set for all environments**
 
 ### Frontend (`VITE_API_BASE_URL`)
 ```
-VITE_API_BASE_URL=https://backend-qi098tcez-ashu16815-gmailcoms-projects.vercel.app/api
+VITE_API_BASE_URL=https://backend-3g0y90ldy-ashu16815-gmailcoms-projects.vercel.app/api
 ```
+✅ **Updated and set for all environments**
 
 **Note**: The code now auto-appends `/api` if missing, but it's still recommended to include it in the env variable.
 
@@ -34,11 +36,11 @@ See `VERCEL_ENV_VARS.md` for complete list.
 
 1. **Backend Health**:
    ```bash
-   curl https://backend-qi098tcez-ashu16815-gmailcoms-projects.vercel.app/api/health
+   curl https://backend-3g0y90ldy-ashu16815-gmailcoms-projects.vercel.app/api/health
    ```
 
 2. **Frontend**:
-   - Visit: `https://frontend-6f7pmmo7l-ashu16815-gmailcoms-projects.vercel.app/chat`
+   - Visit: `https://frontend-dp9qq0o34-ashu16815-gmailcoms-projects.vercel.app/chat`
    - ✅ Auth token is now auto-initialized (no manual setup needed!)
    - Check browser console - should see: `✅ Auth token initialized: staff-access`
    - Test asking a question - should work without 401 errors
