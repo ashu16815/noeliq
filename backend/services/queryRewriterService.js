@@ -10,7 +10,9 @@ const queryRewriterService = {
    */
   async rewrite(userText, conversationState, resolvedEntities, intent) {
     try {
-      const systemPrompt = `You are a query rewriter for a retail assistant. Given user_text and conversation_state, emit a JSON with:
+      const systemPrompt = `You are a query rewriter for a retail assistant. Given user_text and conversation_state, you MUST return ONLY valid JSON with no markdown, no code blocks, no explanations.
+
+Required JSON format:
 {
   "resolved_query": "string - fully specified query including category/brand/budget/use_case inferred from the thread",
   "filters": {
@@ -29,7 +31,7 @@ Rules:
 - Derive filters like category, brand, price_max from conversation_state.
 - resolved_query should be fully specified: include category/brand/budget/size/use_case inferred from the thread.
 - If intent.need_compare is true, include both active_sku and candidate SKUs in compare_list.
-- Return ONLY valid JSON, no markdown, no explanations.`
+- CRITICAL: Return ONLY the JSON object, nothing else. No markdown, no code blocks, no explanations, no text before or after.`
 
       // Build context summary for LLM
       const contextSummary = this.buildContextSummary(conversationState, resolvedEntities, intent)
@@ -60,16 +62,25 @@ Rewrite the query and return JSON only.`
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ], {
-        maxTokens: 500,
-        temperature: 0.3, // Lower temperature for consistent rewriting
+        maxTokens: 600, // Increased to ensure complete JSON responses
+        temperature: 0.2, // Lower temperature for more consistent JSON
+        response_format: { type: 'json_object' }, // Force JSON response format
       })
 
       const answerText = response.choices[0]?.message?.content || ''
       
       // Extract JSON from response
       let jsonText = answerText.trim()
+      
+      // Remove markdown code blocks if present
       if (jsonText.startsWith('```')) {
         jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      }
+      
+      // Extract JSON object if response contains text before/after JSON
+      const jsonMatch = jsonText.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        jsonText = jsonMatch[0]
       }
 
       // Try to fix incomplete JSON (common LLM issue)
@@ -79,19 +90,32 @@ Rewrite the query and return JSON only.`
         if (lastBrace > 0) {
           jsonText = jsonText.substring(0, lastBrace + 1)
         } else {
-          // If no closing brace, try to add one
+          // If no closing brace, try to add missing braces
           if (jsonText.includes('{') && !jsonText.includes('}')) {
-            jsonText = jsonText + '\n}'
+            const openBraces = (jsonText.match(/\{/g) || []).length
+            const closeBraces = (jsonText.match(/\}/g) || []).length
+            const missingBraces = openBraces - closeBraces
+            if (missingBraces > 0) {
+              jsonText = jsonText + '\n' + '}'.repeat(missingBraces)
+            }
           }
         }
+      }
+
+      // Safety check: ensure we have valid JSON to parse
+      if (!jsonText || !jsonText.includes('{')) {
+        console.warn(`[QueryRewriter] No valid JSON found in response, using fallback`)
+        console.warn(`[QueryRewriter] Raw response (first 300 chars): ${answerText.substring(0, 300)}`)
+        return this.fallbackRewrite(userText, conversationState, resolvedEntities, intent)
       }
 
       let result
       try {
         result = JSON.parse(jsonText)
       } catch (parseError) {
-        console.warn(`[QueryRewriter] JSON parse error, trying to fix: ${parseError.message}`)
-        console.warn(`[QueryRewriter] JSON text (first 200 chars): ${jsonText.substring(0, 200)}`)
+        console.warn(`[QueryRewriter] JSON parse error: ${parseError.message}`)
+        console.warn(`[QueryRewriter] JSON text (first 300 chars): ${jsonText.substring(0, 300)}`)
+        console.warn(`[QueryRewriter] Attempting fallback rewrite`)
         // Fallback to fallbackRewrite
         return this.fallbackRewrite(userText, conversationState, resolvedEntities, intent)
       }

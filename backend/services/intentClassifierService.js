@@ -122,7 +122,9 @@ Available intent types:
 - recommendation: User wants a product recommendation
 - follow_up: User asks a follow-up question about a product already discussed
 
-Return ONLY valid JSON with these exact keys:
+CRITICAL: You MUST return ONLY valid JSON with no markdown, no code blocks, no explanations. Return ONLY the JSON object, nothing else.
+
+Required JSON format:
 {
   "intent": "one of: compare, specs, alternatives, details, recommendation, follow_up",
   "need_compare": boolean,
@@ -146,8 +148,9 @@ Classify the intent and return JSON only.`
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ], {
-        maxTokens: 200,
+        maxTokens: 300, // Increased to ensure complete JSON responses
         temperature: 0.1, // Low temperature for consistent classification
+        response_format: { type: 'json_object' }, // Force JSON response format
       })
 
       const answerText = response.choices[0]?.message?.content || ''
