@@ -3,9 +3,9 @@
 **Last Updated**: Latest deployment (with auth token auto-initialization fix)
 
 ## Backend
-- **Production URL**: `https://backend-kh3hoslp0-ashu16815-gmailcoms-projects.vercel.app`
-- **API Base URL**: `https://backend-kh3hoslp0-ashu16815-gmailcoms-projects.vercel.app/api`
-- **Health Check**: `https://backend-kh3hoslp0-ashu16815-gmailcoms-projects.vercel.app/api/health`
+- **Production URL**: `https://backend-qi098tcez-ashu16815-gmailcoms-projects.vercel.app`
+- **API Base URL**: `https://backend-qi098tcez-ashu16815-gmailcoms-projects.vercel.app/api`
+- **Health Check**: `https://backend-qi098tcez-ashu16815-gmailcoms-projects.vercel.app/api/health`
 
 ## Frontend
 - **Production URL**: `https://frontend-6f7pmmo7l-ashu16815-gmailcoms-projects.vercel.app`
@@ -20,7 +20,7 @@ FRONTEND_URL=https://frontend-6f7pmmo7l-ashu16815-gmailcoms-projects.vercel.app
 
 ### Frontend (`VITE_API_BASE_URL`)
 ```
-VITE_API_BASE_URL=https://backend-kh3hoslp0-ashu16815-gmailcoms-projects.vercel.app/api
+VITE_API_BASE_URL=https://backend-qi098tcez-ashu16815-gmailcoms-projects.vercel.app/api
 ```
 
 **Note**: The code now auto-appends `/api` if missing, but it's still recommended to include it in the env variable.
@@ -34,7 +34,7 @@ See `VERCEL_ENV_VARS.md` for complete list.
 
 1. **Backend Health**:
    ```bash
-   curl https://backend-kh3hoslp0-ashu16815-gmailcoms-projects.vercel.app/api/health
+   curl https://backend-qi098tcez-ashu16815-gmailcoms-projects.vercel.app/api/health
    ```
 
 2. **Frontend**:
