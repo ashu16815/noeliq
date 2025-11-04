@@ -1,93 +1,57 @@
 #!/bin/bash
-# Script to set all backend environment variables in Vercel
 
-echo "🔐 Setting Backend Environment Variables in Vercel"
-echo "=================================================="
+# Script to set all environment variables for single Vercel project
+# Usage: ./set-vercel-env.sh <project-name>
+
+PROJECT_NAME=${1:-"noeliq"}
+
+echo "Setting environment variables for Vercel project: $PROJECT_NAME"
+echo "Note: You'll need to provide actual values for Azure services"
 echo ""
 
-# IMPORTANT: Replace these placeholder values with your actual credentials
-# Get values from your local .env file or Azure Portal
-# Never commit actual API keys to Git!
+# Read actual values from user or use defaults
+read -p "Enter Azure OpenAI Endpoint: " AZURE_OPENAI_ENDPOINT
+read -p "Enter Azure OpenAI API Key: " AZURE_OPENAI_API_KEY
+read -p "Enter Azure Search Endpoint: " AZURE_SEARCH_ENDPOINT
+read -p "Enter Azure Search API Key: " AZURE_SEARCH_API_KEY
+read -p "Enter Admin Token (or press Enter for default): " ADMIN_TOKEN
+ADMIN_TOKEN=${ADMIN_TOKEN:-"admin-token-$(openssl rand -hex 16)"}
 
-AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
-AZURE_OPENAI_API_KEY="your-api-key-here"
-AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4o"
-AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME="text-embedding-3-large"
-AZURE_SEARCH_ENDPOINT="https://your-search-service.search.windows.net"
-AZURE_SEARCH_API_KEY="your-search-api-key-here"
-AZURE_SEARCH_INDEX_NAME="noeliq-products"
-PORT="5000"
-NODE_ENV="production"
-ADMIN_TOKEN="admin-access"
-STAFF_TOKEN="staff-access"
-RAG_CHUNK_LIMIT="5"
-USE_OPTIMIZED_RAG="false"
+# Set environment variables for Production, Preview, and Development
+ENVIRONMENTS=("production" "preview" "development")
 
-cd backend
-
-echo "Setting environment variables..."
-echo ""
-
-# Set all variables for Production, Preview, and Development
-vercel env add AZURE_OPENAI_ENDPOINT production <<< "$AZURE_OPENAI_ENDPOINT" 2>&1 || vercel env rm AZURE_OPENAI_ENDPOINT production --yes && vercel env add AZURE_OPENAI_ENDPOINT production <<< "$AZURE_OPENAI_ENDPOINT"
-vercel env add AZURE_OPENAI_ENDPOINT preview <<< "$AZURE_OPENAI_ENDPOINT" 2>&1 || vercel env rm AZURE_OPENAI_ENDPOINT preview --yes && vercel env add AZURE_OPENAI_ENDPOINT preview <<< "$AZURE_OPENAI_ENDPOINT"
-vercel env add AZURE_OPENAI_ENDPOINT development <<< "$AZURE_OPENAI_ENDPOINT" 2>&1 || vercel env rm AZURE_OPENAI_ENDPOINT development --yes && vercel env add AZURE_OPENAI_ENDPOINT development <<< "$AZURE_OPENAI_ENDPOINT"
-
-vercel env add AZURE_OPENAI_API_KEY production <<< "$AZURE_OPENAI_API_KEY" 2>&1 || vercel env rm AZURE_OPENAI_API_KEY production --yes && vercel env add AZURE_OPENAI_API_KEY production <<< "$AZURE_OPENAI_API_KEY"
-vercel env add AZURE_OPENAI_API_KEY preview <<< "$AZURE_OPENAI_API_KEY" 2>&1 || vercel env rm AZURE_OPENAI_API_KEY preview --yes && vercel env add AZURE_OPENAI_API_KEY preview <<< "$AZURE_OPENAI_API_KEY"
-vercel env add AZURE_OPENAI_API_KEY development <<< "$AZURE_OPENAI_API_KEY" 2>&1 || vercel env rm AZURE_OPENAI_API_KEY development --yes && vercel env add AZURE_OPENAI_API_KEY development <<< "$AZURE_OPENAI_API_KEY"
-
-vercel env add AZURE_OPENAI_DEPLOYMENT_NAME production <<< "$AZURE_OPENAI_DEPLOYMENT_NAME" 2>&1 || vercel env rm AZURE_OPENAI_DEPLOYMENT_NAME production --yes && vercel env add AZURE_OPENAI_DEPLOYMENT_NAME production <<< "$AZURE_OPENAI_DEPLOYMENT_NAME"
-vercel env add AZURE_OPENAI_DEPLOYMENT_NAME preview <<< "$AZURE_OPENAI_DEPLOYMENT_NAME" 2>&1 || vercel env rm AZURE_OPENAI_DEPLOYMENT_NAME preview --yes && vercel env add AZURE_OPENAI_DEPLOYMENT_NAME preview <<< "$AZURE_OPENAI_DEPLOYMENT_NAME"
-vercel env add AZURE_OPENAI_DEPLOYMENT_NAME development <<< "$AZURE_OPENAI_DEPLOYMENT_NAME" 2>&1 || vercel env rm AZURE_OPENAI_DEPLOYMENT_NAME development --yes && vercel env add AZURE_OPENAI_DEPLOYMENT_NAME development <<< "$AZURE_OPENAI_DEPLOYMENT_NAME"
-
-vercel env add AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME production <<< "$AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME" 2>&1 || vercel env rm AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME production --yes && vercel env add AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME production <<< "$AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME"
-vercel env add AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME preview <<< "$AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME" 2>&1 || vercel env rm AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME preview --yes && vercel env add AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME preview <<< "$AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME"
-vercel env add AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME development <<< "$AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME" 2>&1 || vercel env rm AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME development --yes && vercel env add AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME development <<< "$AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME"
-
-vercel env add AZURE_SEARCH_ENDPOINT production <<< "$AZURE_SEARCH_ENDPOINT" 2>&1 || vercel env rm AZURE_SEARCH_ENDPOINT production --yes && vercel env add AZURE_SEARCH_ENDPOINT production <<< "$AZURE_SEARCH_ENDPOINT"
-vercel env add AZURE_SEARCH_ENDPOINT preview <<< "$AZURE_SEARCH_ENDPOINT" 2>&1 || vercel env rm AZURE_SEARCH_ENDPOINT preview --yes && vercel env add AZURE_SEARCH_ENDPOINT preview <<< "$AZURE_SEARCH_ENDPOINT"
-vercel env add AZURE_SEARCH_ENDPOINT development <<< "$AZURE_SEARCH_ENDPOINT" 2>&1 || vercel env rm AZURE_SEARCH_ENDPOINT development --yes && vercel env add AZURE_SEARCH_ENDPOINT development <<< "$AZURE_SEARCH_ENDPOINT"
-
-vercel env add AZURE_SEARCH_API_KEY production <<< "$AZURE_SEARCH_API_KEY" 2>&1 || vercel env rm AZURE_SEARCH_API_KEY production --yes && vercel env add AZURE_SEARCH_API_KEY production <<< "$AZURE_SEARCH_API_KEY"
-vercel env add AZURE_SEARCH_API_KEY preview <<< "$AZURE_SEARCH_API_KEY" 2>&1 || vercel env rm AZURE_SEARCH_API_KEY preview --yes && vercel env add AZURE_SEARCH_API_KEY preview <<< "$AZURE_SEARCH_API_KEY"
-vercel env add AZURE_SEARCH_API_KEY development <<< "$AZURE_SEARCH_API_KEY" 2>&1 || vercel env rm AZURE_SEARCH_API_KEY development --yes && vercel env add AZURE_SEARCH_API_KEY development <<< "$AZURE_SEARCH_API_KEY"
-
-vercel env add AZURE_SEARCH_INDEX_NAME production <<< "$AZURE_SEARCH_INDEX_NAME" 2>&1 || vercel env rm AZURE_SEARCH_INDEX_NAME production --yes && vercel env add AZURE_SEARCH_INDEX_NAME production <<< "$AZURE_SEARCH_INDEX_NAME"
-vercel env add AZURE_SEARCH_INDEX_NAME preview <<< "$AZURE_SEARCH_INDEX_NAME" 2>&1 || vercel env rm AZURE_SEARCH_INDEX_NAME preview --yes && vercel env add AZURE_SEARCH_INDEX_NAME preview <<< "$AZURE_SEARCH_INDEX_NAME"
-vercel env add AZURE_SEARCH_INDEX_NAME development <<< "$AZURE_SEARCH_INDEX_NAME" 2>&1 || vercel env rm AZURE_SEARCH_INDEX_NAME development --yes && vercel env add AZURE_SEARCH_INDEX_NAME development <<< "$AZURE_SEARCH_INDEX_NAME"
-
-vercel env add PORT production <<< "$PORT" 2>&1 || vercel env rm PORT production --yes && vercel env add PORT production <<< "$PORT"
-vercel env add PORT preview <<< "$PORT" 2>&1 || vercel env rm PORT preview --yes && vercel env add PORT preview <<< "$PORT"
-vercel env add PORT development <<< "$PORT" 2>&1 || vercel env rm PORT development --yes && vercel env add PORT development <<< "$PORT"
-
-vercel env add NODE_ENV production <<< "$NODE_ENV" 2>&1 || vercel env rm NODE_ENV production --yes && vercel env add NODE_ENV production <<< "$NODE_ENV"
-vercel env add NODE_ENV preview <<< "$NODE_ENV" 2>&1 || vercel env rm NODE_ENV preview --yes && vercel env add NODE_ENV preview <<< "$NODE_ENV"
-vercel env add NODE_ENV development <<< "$NODE_ENV" 2>&1 || vercel env rm NODE_ENV development --yes && vercel env add NODE_ENV development <<< "$NODE_ENV"
-
-vercel env add ADMIN_TOKEN production <<< "$ADMIN_TOKEN" 2>&1 || vercel env rm ADMIN_TOKEN production --yes && vercel env add ADMIN_TOKEN production <<< "$ADMIN_TOKEN"
-vercel env add ADMIN_TOKEN preview <<< "$ADMIN_TOKEN" 2>&1 || vercel env rm ADMIN_TOKEN preview --yes && vercel env add ADMIN_TOKEN preview <<< "$ADMIN_TOKEN"
-vercel env add ADMIN_TOKEN development <<< "$ADMIN_TOKEN" 2>&1 || vercel env rm ADMIN_TOKEN development --yes && vercel env add ADMIN_TOKEN development <<< "$ADMIN_TOKEN"
-
-vercel env add STAFF_TOKEN production <<< "$STAFF_TOKEN" 2>&1 || vercel env rm ADMIN_TOKEN production --yes && vercel env add STAFF_TOKEN production <<< "$STAFF_TOKEN"
-vercel env add STAFF_TOKEN preview <<< "$STAFF_TOKEN" 2>&1 || vercel env rm STAFF_TOKEN preview --yes && vercel env add STAFF_TOKEN preview <<< "$STAFF_TOKEN"
-vercel env add STAFF_TOKEN development <<< "$STAFF_TOKEN" 2>&1 || vercel env rm STAFF_TOKEN development --yes && vercel env add STAFF_TOKEN development <<< "$STAFF_TOKEN"
-
-vercel env add RAG_CHUNK_LIMIT production <<< "$RAG_CHUNK_LIMIT" 2>&1 || vercel env rm RAG_CHUNK_LIMIT production --yes && vercel env add RAG_CHUNK_LIMIT production <<< "$RAG_CHUNK_LIMIT"
-vercel env add RAG_CHUNK_LIMIT preview <<< "$RAG_CHUNK_LIMIT" 2>&1 || vercel env rm RAG_CHUNK_LIMIT preview --yes && vercel env add RAG_CHUNK_LIMIT preview <<< "$RAG_CHUNK_LIMIT"
-vercel env add RAG_CHUNK_LIMIT development <<< "$RAG_CHUNK_LIMIT" 2>&1 || vercel env rm RAG_CHUNK_LIMIT development --yes && vercel env add RAG_CHUNK_LIMIT development <<< "$RAG_CHUNK_LIMIT"
-
-vercel env add USE_OPTIMIZED_RAG production <<< "$USE_OPTIMIZED_RAG" 2>&1 || vercel env rm USE_OPTIMIZED_RAG production --yes && vercel env add USE_OPTIMIZED_RAG production <<< "$USE_OPTIMIZED_RAG"
-vercel env add USE_OPTIMIZED_RAG preview <<< "$USE_OPTIMIZED_RAG" 2>&1 || vercel env rm USE_OPTIMIZED_RAG preview --yes && vercel env add USE_OPTIMIZED_RAG preview <<< "$USE_OPTIMIZED_RAG"
-vercel env add USE_OPTIMIZED_RAG development <<< "$USE_OPTIMIZED_RAG" 2>&1 || vercel env rm USE_OPTIMIZED_RAG development --yes && vercel env add USE_OPTIMIZED_RAG development <<< "$USE_OPTIMIZED_RAG"
+for env in "${ENVIRONMENTS[@]}"; do
+  echo ""
+  echo "Setting variables for $env environment..."
+  
+  # Azure OpenAI
+  vercel env add AZURE_OPENAI_ENDPOINT "$env" <<< "$AZURE_OPENAI_ENDPOINT"
+  vercel env add AZURE_OPENAI_API_KEY "$env" <<< "$AZURE_OPENAI_API_KEY"
+  vercel env add AZURE_OPENAI_DEPLOYMENT_NAME "$env" <<< "gpt-4o"
+  vercel env add AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME "$env" <<< "text-embedding-3-large"
+  
+  # Azure Search
+  vercel env add AZURE_SEARCH_ENDPOINT "$env" <<< "$AZURE_SEARCH_ENDPOINT"
+  vercel env add AZURE_SEARCH_API_KEY "$env" <<< "$AZURE_SEARCH_API_KEY"
+  vercel env add AZURE_SEARCH_INDEX_NAME "$env" <<< "noeliq-products"
+  
+  # Server
+  vercel env add PORT "$env" <<< "5000"
+  vercel env add NODE_ENV "$env" <<< "production"
+  
+  # Auth
+  vercel env add ADMIN_TOKEN "$env" <<< "$ADMIN_TOKEN"
+  vercel env add STAFF_TOKEN "$env" <<< "staff-access"
+  
+  # RAG
+  vercel env add RAG_CHUNK_LIMIT "$env" <<< "5"
+  vercel env add USE_OPTIMIZED_RAG "$env" <<< "false"
+  vercel env add USE_TURN_ORCHESTRATOR "$env" <<< "true"
+  
+  # Frontend URL (will be updated after deployment)
+  vercel env add FRONTEND_URL "$env" <<< "https://$PROJECT_NAME.vercel.app"
+done
 
 echo ""
-echo "✅ Environment variables set!"
-echo "🔄 Redeploying backend to apply changes..."
-vercel --prod
-
-
-
-
-
-
+echo "✅ All environment variables set!"
+echo "Next step: Deploy the project with 'vercel --prod'"

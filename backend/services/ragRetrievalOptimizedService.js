@@ -188,7 +188,7 @@ const ragRetrievalOptimizedService = {
 
     // If comparing, ensure we get chunks from each SKU
     const targetSkus = compare_list.length > 0 ? compare_list : [...new Set(uniqueChunks.map(c => c.sku).filter(Boolean))]
-    
+
     // First pass: get one chunk per section type per SKU (for comparison)
     if (compare_list.length > 0) {
       // For comparison, prioritize getting same section types from different SKUs
