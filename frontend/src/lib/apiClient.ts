@@ -1,8 +1,13 @@
 import axios from 'axios'
 
-// Ensure API_BASE_URL always ends with /api
-const envApiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
-const API_BASE_URL = envApiUrl.endsWith('/api') ? envApiUrl : `${envApiUrl}/api`
+// API Base URL configuration:
+// - If VITE_API_BASE_URL is set, use it (for separate deployments)
+// - If not set, use relative URL '/api' (for single project deployment)
+// - Default to localhost for local development
+const envApiUrl = import.meta.env.VITE_API_BASE_URL
+const API_BASE_URL = envApiUrl 
+  ? (envApiUrl.endsWith('/api') ? envApiUrl : `${envApiUrl}/api`)
+  : (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api')
 
 // Default token (can be overridden via environment variable or localStorage)
 const DEFAULT_TOKEN = import.meta.env.VITE_STAFF_TOKEN || 'staff-access'
