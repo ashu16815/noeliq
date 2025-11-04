@@ -4,6 +4,15 @@ import axios from 'axios'
 const envApiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
 const API_BASE_URL = envApiUrl.endsWith('/api') ? envApiUrl : `${envApiUrl}/api`
 
+// Default token (can be overridden via environment variable or localStorage)
+const DEFAULT_TOKEN = import.meta.env.VITE_STAFF_TOKEN || 'staff-access'
+
+// Initialize token in localStorage if not present
+if (!localStorage.getItem('noeliq_token')) {
+  localStorage.setItem('noeliq_token', DEFAULT_TOKEN)
+  console.log('✅ Auth token initialized:', DEFAULT_TOKEN)
+}
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -14,12 +23,8 @@ const apiClient = axios.create({
 
 // Request interceptor for auth (MVP: simple token)
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('noeliq_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  } else {
-    console.warn('⚠️ No auth token found in localStorage. Set it with: localStorage.setItem("noeliq_token", "staff-access")')
-  }
+  const token = localStorage.getItem('noeliq_token') || DEFAULT_TOKEN
+  config.headers.Authorization = `Bearer ${token}`
   return config
 })
 

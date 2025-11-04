@@ -4,7 +4,17 @@
 Backend is returning `401 Unauthorized` for `/api/ask` and `/api/stores` endpoints.
 
 ## Root Cause
-The `STAFF_TOKEN` environment variable is either:
+**Fixed!** The frontend was not sending the Authorization token because:
+1. `localStorage.getItem('noeliq_token')` was not initialized
+2. The token was never set automatically
+
+**Solution Applied:**
+- Frontend now automatically initializes `localStorage` with `staff-access` token on first load
+- Frontend always sends Authorization header (falls back to default if localStorage is empty)
+- Can be configured via `VITE_STAFF_TOKEN` environment variable
+
+## Previous Root Cause (Before Fix)
+The `STAFF_TOKEN` environment variable was either:
 1. Not set in Vercel backend environment variables
 2. Set to a different value than what the frontend is sending
 
