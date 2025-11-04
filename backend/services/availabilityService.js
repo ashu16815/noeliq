@@ -66,7 +66,11 @@ const availabilityService = {
       const selectedLon = selectedCoords.longitude
 
       // Mock stock for this store (TODO: Replace with real inventory API)
-      const thisStoreQty = Math.floor(Math.random() * 10) // 0-9 units
+      // Use SKU + store_id to generate consistent "random" number (same SKU+store = same quantity)
+      // This ensures Vercel and localhost show the same stock for testing
+      const hash = `${sku}-${store_id}`.split('').reduce((acc, char) => 
+        acc + char.charCodeAt(0), 0)
+      const thisStoreQty = hash % 10 // 0-9 units, but consistent for same SKU+store
 
       // Find nearby stores (within 50km radius, sorted by distance)
       const nearbyStores = []
@@ -103,12 +107,18 @@ const availabilityService = {
         const topNearby = nearbyStores.slice(0, 3)
         
         // Add mock stock data (TODO: Replace with real inventory API)
-        const nearbyWithStock = topNearby.map(store => ({
-          ...store,
-          qty: Math.floor(Math.random() * 8) + 1, // 1-8 units
-          // Remove mock fulfilment times - these should come from real system
-          fulfilment_option: null, // Will be set by real inventory system
-        }))
+        // Use SKU + store_id to generate consistent quantities (same SKU+store = same quantity)
+        const nearbyWithStock = topNearby.map(store => {
+          const storeHash = `${sku}-${store.store_id}`.split('').reduce((acc, char) => 
+            acc + char.charCodeAt(0), 0)
+          const qty = (storeHash % 8) + 1 // 1-8 units, but consistent for same SKU+store
+          return {
+            ...store,
+            qty,
+            // Remove mock fulfilment times - these should come from real system
+            fulfilment_option: null, // Will be set by real inventory system
+          }
+        })
 
         return {
           sku,
