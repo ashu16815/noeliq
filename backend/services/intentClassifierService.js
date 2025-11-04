@@ -10,31 +10,43 @@ const intentClassifierService = {
    */
   async detect(userText, conversationState = {}) {
     try {
+      console.log(`[IntentClassifier] 🔍 Classifying intent for: "${userText}"`)
+      console.log(`[IntentClassifier] Active SKU: ${conversationState.active_sku || 'none'}`)
+      
       // Pattern-based classification first (fast, deterministic)
       const patternResult = this.detectByPatterns(userText, conversationState)
+      console.log(`[IntentClassifier] Pattern-based result: intent=${patternResult.result.intent}, confidence=${patternResult.confidence}`)
       
       // If pattern-based is confident, return it
       if (patternResult.confidence === 'high') {
+        console.log(`[IntentClassifier] ✅ Using pattern-based classification (high confidence)`)
         return patternResult.result
       }
 
       // For ambiguous cases, use LLM fallback
       if (patternResult.confidence === 'medium' || patternResult.confidence === 'low') {
+        console.log(`[IntentClassifier] Using LLM fallback (confidence: ${patternResult.confidence})`)
         const llmResult = await this.detectByLLM(userText, conversationState)
+        console.log(`[IntentClassifier] LLM result: intent=${llmResult.intent}, need_compare=${llmResult.need_compare}`)
         // Merge pattern and LLM results, prefer LLM for ambiguous cases
-        return {
+        const mergedResult = {
           ...patternResult.result,
           ...llmResult,
           // LLM can override intent type if it's more confident
           intent: llmResult.intent || patternResult.result.intent,
         }
+        console.log(`[IntentClassifier] ✅ Merged result: intent=${mergedResult.intent}`)
+        return mergedResult
       }
 
+      console.log(`[IntentClassifier] ✅ Using pattern-based classification (default)`)
       return patternResult.result
     } catch (error) {
-      console.error('Error in intent classification:', error)
+      console.error(`[IntentClassifier] ❌ Error in intent classification:`, error.message)
       // Fallback to pattern-based if LLM fails
-      return this.detectByPatterns(userText, conversationState).result
+      const fallbackResult = this.detectByPatterns(userText, conversationState).result
+      console.log(`[IntentClassifier] Using fallback pattern-based result: intent=${fallbackResult.intent}`)
+      return fallbackResult
     }
   },
 
