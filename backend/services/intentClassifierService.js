@@ -158,6 +158,37 @@ Classify the intent and return JSON only.`
         jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
       }
 
+      // Try to fix incomplete JSON (common LLM issue)
+      if (jsonText && !jsonText.endsWith('}')) {
+        // Try to find the last complete JSON object
+        const lastBrace = jsonText.lastIndexOf('}')
+        if (lastBrace > 0) {
+          jsonText = jsonText.substring(0, lastBrace + 1)
+        } else {
+          // If no closing brace, try to add one (but only if we have an opening brace)
+          if (jsonText.includes('{') && !jsonText.includes('}')) {
+            // Count opening braces to close them properly
+            const openBraces = (jsonText.match(/\{/g) || []).length
+            const closeBraces = (jsonText.match(/\}/g) || []).length
+            const missingBraces = openBraces - closeBraces
+            if (missingBraces > 0) {
+              jsonText = jsonText + '\n' + '}'.repeat(missingBraces)
+            }
+          }
+        }
+      }
+
+      // Extract JSON object if response contains text before/after JSON
+      const jsonMatch = jsonText.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        jsonText = jsonMatch[0]
+      }
+
+      // Safety check: ensure we have valid JSON to parse
+      if (!jsonText || !jsonText.includes('{')) {
+        throw new Error('No valid JSON found in LLM response')
+      }
+
       const result = JSON.parse(jsonText)
       
       // Validate result structure
