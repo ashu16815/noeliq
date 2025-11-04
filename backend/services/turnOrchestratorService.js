@@ -217,6 +217,12 @@ const turnOrchestratorService = {
 
       // Step 11: Generate answer
       console.log(`[TurnOrchestrator] Step 11: Generating answer...`)
+      console.log(`[TurnOrchestrator] Input to generation service:`)
+      console.log(`[TurnOrchestrator]   - Context summary length: ${contextSummary.length} chars`)
+      console.log(`[TurnOrchestrator]   - Top chunks: ${topChunks.length}`)
+      console.log(`[TurnOrchestrator]   - Product records: ${Object.keys(productRecords).length} SKUs`)
+      console.log(`[TurnOrchestrator]   - Active SKU: ${activeSku || 'null'}`)
+      console.log(`[TurnOrchestrator]   - Compare list: [${rewrittenQuery.compare_list.join(', ') || 'none'}]`)
       const answer = await generationService.buildPromptAndCallLLM({
         question: user_text,
         relevantChunks: topChunks, // Pass original chunks for citations
@@ -231,6 +237,12 @@ const turnOrchestratorService = {
         customer_intent: customerIntent,
         productRecords, // Pass all product records so names can be included with SKUs
       })
+
+      console.log(`[TurnOrchestrator] Generated answer:`)
+      console.log(`[TurnOrchestrator]   - Summary length: ${answer.summary?.length || 0} chars`)
+      console.log(`[TurnOrchestrator]   - Key points: ${answer.key_points?.length || 0} items`)
+      console.log(`[TurnOrchestrator]   - Attachments: ${answer.attachments?.length || 0} items`)
+      console.log(`[TurnOrchestrator]   - Alternative SKU: ${answer.alternative_if_oos?.alt_sku || 'none'}`)
 
       // Step 12: Update conversation state with turn
       conversationService.addTurn(conversation_id, user_text, answer, activeSku || providedSku)
@@ -247,6 +259,7 @@ const turnOrchestratorService = {
       })
 
       console.log(`[TurnOrchestrator] ✅ Turn processed successfully`)
+      console.log(`[TurnOrchestrator] Returning answer with ${topChunks.filter(c => c.chunk_id).length} citations`)
       
       return {
         ...answer,

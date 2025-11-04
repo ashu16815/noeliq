@@ -63,12 +63,15 @@ const ragRetrievalOptimizedService = {
 
       // Step 5: Rerank, deduplicate, and diversify (ensures diversity across SKUs for comparison)
       const rerankedChunks = this.rerankAndDiversify(filteredResults, CONFIG.rerank_max_chunks || limit, compare_list)
+      const rerankedUniqueSkus = [...new Set(rerankedChunks.map(c => c.sku).filter(Boolean))]
+      console.log(`[RAG] After reranking: ${rerankedChunks.length} chunks from ${rerankedUniqueSkus.length} unique SKUs: ${rerankedUniqueSkus.join(', ')}`)
 
       // Step 6: Optionally summarize if context is too large
       const finalChunks = await this.condenseContextIfNeeded(rerankedChunks, CONFIG.max_context_tokens)
 
       // Step 7: If no chunks found and we have customer intent, add intent as synthetic chunk
       if (finalChunks.length === 0 && customer_intent) {
+        console.log(`[RAG] No chunks found - using synthetic intent chunk`)
         return [{
           section_title: 'Customer Intent',
           section_body: customer_intent,
@@ -78,6 +81,12 @@ const ragRetrievalOptimizedService = {
           importance_score: 0.8,
           search_score: 0.8,
         }]
+      }
+
+      const finalUniqueSkus = [...new Set(finalChunks.map(c => c.sku).filter(Boolean))]
+      console.log(`[RAG] ✅ Final chunks: ${finalChunks.length} chunks from ${finalUniqueSkus.length} unique SKUs: ${finalUniqueSkus.join(', ')}`)
+      if (finalChunks.length > 0) {
+        console.log(`[RAG] Sample chunk: SKU ${finalChunks[0].sku}, section: ${finalChunks[0].section_title || 'Unknown'}, preview: ${(finalChunks[0].section_body || '').substring(0, 100)}...`)
       }
 
       return finalChunks
