@@ -287,28 +287,40 @@ const entityResolverService = {
   isGeneralRecommendationQuery(userText, conversationState) {
     const text = userText.toLowerCase()
     
-    // General recommendation patterns
+    // General recommendation patterns - expanded to catch more variations
     const generalPatterns = [
-      /^(find|show|give|recommend|suggest|what|which|list).*(laptop|phone|tv|tablet|watch|camera|headphone)/i,
-      /(laptop|phone|tv|tablet|watch|camera|headphone).*(below|under|less than|around|about|max|budget)/i,
-      /(below|under|less than|around|about|max|budget).*\$(laptop|phone|tv|tablet|watch|camera|headphone)/i,
+      /^(find|show|give|recommend|suggest|what|which|list|i need|i want|looking for|search for).*(laptop|phone|tv|tablet|watch|camera|headphone)/i,
+      /(laptop|phone|tv|tablet|watch|camera|headphone).*(below|under|less than|around|about|max|budget|for|within)/i,
+      /(below|under|less than|around|about|max|budget|within).*\d+.*(laptop|phone|tv|tablet|watch|camera|headphone)/i,
+      /(laptop|phone|tv|tablet|watch|camera|headphone).*\$?\d+/i, // Category with price
+      /\$?\d+.*(laptop|phone|tv|tablet|watch|camera|headphone)/i, // Price with category
+      /(i need|i want|looking for|search for).*(laptop|phone|tv|tablet|watch|camera|headphone).*(under|below|within|for)/i,
     ]
     
     // Specific product patterns (opposite)
     const specificPatterns = [
-      /(tell me|what is|details|specs|features|about|this|that|it)/i,
-      /\b(sku|model|exact|specific)\b/i,
+      /(tell me|what is|details|specs|features|about|this|that|it|the).*(sku|model|exact|specific|product)/i,
+      /\b(sku|model|exact|specific)\b.*\d+/i,
+      /sku\s*\d+/i, // Explicit SKU reference
     ]
     
     // If it matches general patterns and NOT specific patterns, it's a general recommendation
     const isGeneral = generalPatterns.some(p => p.test(text)) && !specificPatterns.some(p => p.test(text))
     
     // Also check if there's a budget constraint but no specific product mentioned
-    const hasBudget = /(below|under|less than|around|about|max|budget).*\d+/i.test(text)
+    // This catches "laptop under 1000" or "I need laptop under 1000 dollar"
+    const hasBudget = /(below|under|less than|around|about|max|budget|within|for).*\d+/i.test(text)
     const hasCategory = /(laptop|phone|tv|tablet|watch|camera|headphone)/i.test(text)
     const noSpecificProduct = !conversationState.active_sku
     
-    return isGeneral || (hasBudget && hasCategory && noSpecificProduct)
+    // Strong indicator: category + budget + no active SKU = general recommendation
+    const isGeneralByBudget = hasBudget && hasCategory && noSpecificProduct
+    
+    // Also check for "I need/want/looking for" + category pattern
+    const hasGeneralRequest = /(i need|i want|looking for|search for|find|show|give|recommend|suggest)/i.test(text)
+    const isGeneralByRequest = hasGeneralRequest && hasCategory && noSpecificProduct
+    
+    return isGeneral || isGeneralByBudget || isGeneralByRequest
   },
 
   /**
