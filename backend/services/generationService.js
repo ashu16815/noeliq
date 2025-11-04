@@ -305,6 +305,18 @@ const generationService = {
         }
       }
 
+      // Log what we're sending to LLM
+      console.log(`[GenerationService] 📝 Building LLM prompt`)
+      console.log(`[GenerationService]   Question: "${question}"`)
+      console.log(`[GenerationService]   Context length: ${truncatedContext.length} chars`)
+      console.log(`[GenerationService]   Active context blocks: ${activeContextBlocks.length}`)
+      console.log(`[GenerationService]   Compare blocks: ${compareBlocks.length}`)
+      console.log(`[GenerationService]   Product records: ${Object.keys(productRecords).length} SKUs`)
+      console.log(`[GenerationService]   Is general recommendation: ${isGeneralRecommendation}`)
+      if (isGeneralRecommendation) {
+        console.log(`[GenerationService]   Unique SKUs in context: ${uniqueSkus.join(', ')}`)
+      }
+      
       // Build the prompt with structured output request - keep it concise
       const userPrompt = `Question: ${question}
 

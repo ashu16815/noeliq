@@ -47,8 +47,12 @@ const ragRetrievalOptimizedService = {
       } else if (!sku) {
         // No SKU filter = general recommendation query - retrieve without SKU filter to get multiple options
         // Retrieve more results to ensure we get diverse SKUs
+        console.log(`[RAG] 🔍 General query (no SKU filter) - retrieving chunks for all SKUs`)
+        console.log(`[RAG] Enhanced question: "${enhancedQuestion}"`)
+        console.log(`[RAG] Filters:`, filters)
         allResults = await this.hybridSearch(enhancedQuestion, questionEmbedding, null, filters)
-        console.log(`[RAG] General query - retrieved ${allResults.length} chunks from all SKUs`)
+        const uniqueSkus = [...new Set(allResults.map(r => r.sku).filter(Boolean))]
+        console.log(`[RAG] General query - retrieved ${allResults.length} chunks from ${uniqueSkus.length} unique SKUs: ${uniqueSkus.join(', ')}`)
       } else {
         // Normal single-SKU retrieval
         allResults = await this.hybridSearch(enhancedQuestion, questionEmbedding, sku, filters)

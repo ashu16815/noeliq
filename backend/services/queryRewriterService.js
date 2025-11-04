@@ -9,6 +9,9 @@ const queryRewriterService = {
    * Returns: { resolved_query, filters, compare_list, constraints }
    */
   async rewrite(userText, conversationState, resolvedEntities, intent) {
+    console.log(`[QueryRewriter] 🔄 Rewriting query: "${userText}"`)
+    console.log(`[QueryRewriter] Intent: ${intent.intent}, need_compare: ${intent.need_compare}`)
+    console.log(`[QueryRewriter] Resolved entities - active_sku: ${resolvedEntities.active_sku || 'null'}, candidate_skus: [${resolvedEntities.candidate_skus.join(', ') || 'none'}], category: ${resolvedEntities.category || 'null'}, budget: ${resolvedEntities.budget || 'null'}`)
     try {
       const systemPrompt = `You are a query rewriter for a retail assistant. Given user_text and conversation_state, you MUST return ONLY valid JSON with no markdown, no code blocks, no explanations.
 
@@ -154,12 +157,19 @@ Rewrite the query and return JSON only.`
         resolvedQuery = this.enhanceQuery(userText, conversationState, resolvedEntities)
       }
 
-      return {
+      const finalResult = {
         resolved_query: resolvedQuery,
         filters,
         compare_list: compareList.filter(sku => sku), // Remove nulls
         constraints: result.constraints || this.extractConstraints(userText),
       }
+      
+      console.log(`[QueryRewriter] ✅ Rewritten query: "${finalResult.resolved_query}"`)
+      console.log(`[QueryRewriter] Filters:`, finalResult.filters)
+      console.log(`[QueryRewriter] Compare list: [${finalResult.compare_list.join(', ') || 'none'}]`)
+      console.log(`[QueryRewriter] Constraints: [${finalResult.constraints.join(', ') || 'none'}]`)
+      
+      return finalResult
     } catch (error) {
       console.error('Error in query rewriting:', error)
       // Fallback to simple rewriting

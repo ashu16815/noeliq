@@ -48,39 +48,59 @@ const entityResolverService = {
 
       // Check if this is a general recommendation query (e.g., "laptop below 1000") vs specific product query
       const isGeneralRecommendation = this.isGeneralRecommendationQuery(userText, conversationState)
+      console.log(`[EntityResolver] General recommendation detected: ${isGeneralRecommendation}`)
+      console.log(`[EntityResolver] Extracted entities - budget: ${resolved.budget}, category: ${categoryHints}, use_case: ${resolved.use_case}`)
       
       // Check if user mentions a product name/brand/model
       const productMention = this.detectProductMention(userText)
+      console.log(`[EntityResolver] Product mention detected: ${productMention ? productMention.query : 'none'}`)
       
       if (productMention) {
         // Search for products matching the mention
         const searchQuery = productMention.query
+        console.log(`[EntityResolver] Searching products with query: "${searchQuery}"`)
         const products = await productSearchService.searchProducts(searchQuery, 5)
+        console.log(`[EntityResolver] Product search found ${products.length} products`)
+        if (products.length > 0) {
+          console.log(`[EntityResolver] Found SKUs: ${products.map(p => `${p.sku} (${p.name || 'unnamed'})`).join(', ')}`)
+        }
         
         if (products.length > 0) {
           if (isGeneralRecommendation) {
             // For general queries (e.g., "laptop below 1000"), don't set active_sku
             // Instead, populate candidate_skus for comparison
             resolved.candidate_skus = products.map(p => p.sku).slice(0, 5) // Get top 5 options
+            console.log(`[EntityResolver] General recommendation - set ${resolved.candidate_skus.length} candidate_skus: ${resolved.candidate_skus.join(', ')}`)
             // Don't set active_sku - let retrieval find multiple options
           } else {
             // For specific product queries, set active_sku
             resolved.active_sku = products[0].sku
             resolved.candidate_skus = products.map(p => p.sku)
+            console.log(`[EntityResolver] Specific product query - set active_sku: ${resolved.active_sku}`)
           }
           
           if (products[0].category) {
             resolved.category = products[0].category
           }
+        } else {
+          console.warn(`[EntityResolver] ⚠️ Product search returned 0 results for: "${searchQuery}"`)
         }
       } else if (isGeneralRecommendation && (resolved.category || resolved.budget)) {
         // For general queries without specific product mention, search by category + budget
         const searchQuery = `${resolved.category || 'product'} under ${resolved.budget || ''}`
+        console.log(`[EntityResolver] General query without product mention - searching: "${searchQuery}"`)
         const products = await productSearchService.searchProducts(searchQuery, 5)
+        console.log(`[EntityResolver] Category+budget search found ${products.length} products`)
         if (products.length > 0) {
+          console.log(`[EntityResolver] Found SKUs: ${products.map(p => `${p.sku} (${p.name || 'unnamed'})`).join(', ')}`)
           resolved.candidate_skus = products.map(p => p.sku).slice(0, 5)
+          console.log(`[EntityResolver] Set ${resolved.candidate_skus.length} candidate_skus: ${resolved.candidate_skus.join(', ')}`)
           // Don't set active_sku for general recommendations
+        } else {
+          console.warn(`[EntityResolver] ⚠️ Category+budget search returned 0 results for: "${searchQuery}"`)
         }
+      } else {
+        console.log(`[EntityResolver] No product search performed - productMention: ${!!productMention}, isGeneral: ${isGeneralRecommendation}, hasCategory: ${!!resolved.category}, hasBudget: ${!!resolved.budget}`)
       }
 
       // Handle "alternatives iPhone" pattern - find comparable iPhone in same price band
@@ -99,7 +119,17 @@ const entityResolverService = {
       // BUT: Don't use it for general recommendation queries
       if (!resolved.active_sku && conversationState.active_sku && !this.isGeneralRecommendationQuery(userText, conversationState)) {
         resolved.active_sku = conversationState.active_sku
+        console.log(`[EntityResolver] Using active_sku from conversation state: ${resolved.active_sku}`)
       }
+
+      // Final resolved entities
+      console.log(`[EntityResolver] ✅ Final resolved entities:`)
+      console.log(`[EntityResolver]   active_sku: ${resolved.active_sku || 'null'}`)
+      console.log(`[EntityResolver]   candidate_skus: [${resolved.candidate_skus.join(', ') || 'none'}]`)
+      console.log(`[EntityResolver]   category: ${resolved.category || 'null'}`)
+      console.log(`[EntityResolver]   brand: ${resolved.brand || 'null'}`)
+      console.log(`[EntityResolver]   budget: ${resolved.budget || 'null'}`)
+      console.log(`[EntityResolver]   use_case: ${resolved.use_case || 'null'}`)
 
       // Infer category/brand from conversation state if not found in text
       if (!resolved.category) {

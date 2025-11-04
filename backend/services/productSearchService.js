@@ -8,10 +8,14 @@ import productRetrievalService from './productRetrievalService.js'
 const productSearchService = {
   async searchProducts(query, limit = 10) {
     try {
+      console.log(`[ProductSearch] 🔍 Searching products for: "${query}" (limit: ${limit})`)
+      
       // Step 1: Generate embedding for the product search query
       const queryEmbedding = await this.generateQueryEmbedding(query)
+      console.log(`[ProductSearch] Generated embedding (${queryEmbedding.length} dimensions)`)
 
       // Step 2: Perform vector search to find relevant product chunks
+      console.log(`[ProductSearch] Performing vector search (k=${limit * 5}, top=${limit * 5})`)
       const chunks = await searchClient.search('', {
         vectorSearchOptions: {
           queries: [
@@ -25,6 +29,7 @@ const productSearchService = {
         },
         top: limit * 5,
       })
+      console.log(`[ProductSearch] Azure Search returned ${chunks.length} chunks`)
 
       // Step 3: Group chunks by SKU and extract product info
       const productsBySku = {}
@@ -137,6 +142,10 @@ const productSearchService = {
         }
       }
 
+      // Log found products by SKU
+      const uniqueSkus = Object.keys(productsBySku)
+      console.log(`[ProductSearch] Found ${uniqueSkus.length} unique SKUs: ${uniqueSkus.join(', ')}`)
+      
       // Step 5: Convert to array and sort by relevance (most chunks = most relevant)
       const products = Object.values(productsBySku)
         .sort((a, b) => b.sections.length - a.sections.length)
@@ -170,9 +179,15 @@ const productSearchService = {
           }
         })
 
+      console.log(`[ProductSearch] ✅ Returning ${products.length} products:`)
+      products.forEach((p, idx) => {
+        console.log(`[ProductSearch]   ${idx + 1}. SKU ${p.sku}: ${p.name} (${p.category})`)
+      })
+      
       return products
     } catch (error) {
-      console.error('Error searching products:', error)
+      console.error(`[ProductSearch] ❌ Error searching products:`, error.message)
+      console.error(`[ProductSearch] Stack:`, error.stack)
       return []
     }
   },
