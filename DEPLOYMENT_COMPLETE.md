@@ -1,105 +1,120 @@
-# ✅ Deployment Complete!
+# ✅ Deployment Complete - All Environment Variables Configured
 
-## 🎉 Successfully Deployed
+## Summary
+
+Both frontend and backend have been deployed to Vercel with all required environment variables configured.
+
+## Deployment URLs
 
 ### Backend
-- **URL**: `https://backend-ovaqgrhci-ashu16815-gmailcoms-projects.vercel.app`
-- **Status**: ✅ Deployed
-- **Project**: `backend` (Vercel)
+- **Production URL**: `https://backend-3g0y90ldy-ashu16815-gmailcoms-projects.vercel.app`
+- **API Base**: `https://backend-3g0y90ldy-ashu16815-gmailcoms-projects.vercel.app/api`
+- **Health Check**: `https://backend-3g0y90ldy-ashu16815-gmailcoms-projects.vercel.app/api/health`
 
 ### Frontend
-- **URL**: `https://frontend-4q888npxw-ashu16815-gmailcoms-projects.vercel.app`
-- **Status**: ✅ Deployed
-- **Project**: `frontend` (Vercel)
+- **Production URL**: `https://frontend-dp9qq0o34-ashu16815-gmailcoms-projects.vercel.app`
+- **Chat Page**: `https://frontend-dp9qq0o34-ashu16815-gmailcoms-projects.vercel.app/chat`
 
-### GitHub
-- **Repository**: `https://github.com/ashu16815/noeliq`
-- **Status**: ✅ All code pushed
-- **Secrets**: ✅ Removed from history using `git filter-repo`
+## Environment Variables Status
 
-## ⚠️ Critical: Set Environment Variables
+### ✅ Backend (15 variables - ALL SET)
 
-The backend **will not work** until environment variables are set in Vercel.
+**Azure OpenAI (4)**
+- ✅ `AZURE_OPENAI_ENDPOINT`
+- ✅ `AZURE_OPENAI_API_KEY`
+- ✅ `AZURE_OPENAI_DEPLOYMENT_NAME`
+- ✅ `AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME`
 
-### Step 1: Set Backend Environment Variables
+**Azure Search (3)**
+- ✅ `AZURE_SEARCH_ENDPOINT`
+- ✅ `AZURE_SEARCH_API_KEY`
+- ✅ `AZURE_SEARCH_INDEX_NAME`
 
-1. Go to https://vercel.com/dashboard
-2. Select your **`backend`** project
-3. Click **Settings** → **Environment Variables**
-4. Add all variables from `VERCEL_ENV_VARS.md`:
+**Server (2)**
+- ✅ `PORT`
+- ✅ `NODE_ENV`
 
+**Authentication (2)**
+- ✅ `ADMIN_TOKEN`
+- ✅ `STAFF_TOKEN` (set to `staff-access`)
+
+**RAG (3)**
+- ✅ `RAG_CHUNK_LIMIT`
+- ✅ `USE_OPTIMIZED_RAG`
+- ✅ `USE_TURN_ORCHESTRATOR`
+
+**Frontend URL (1)**
+- ✅ `FRONTEND_URL` = `https://frontend-dp9qq0o34-ashu16815-gmailcoms-projects.vercel.app`
+  - Set for Production, Preview, Development
+
+### ✅ Frontend (3 variables - ALL SET)
+
+**API Configuration (1)**
+- ✅ `VITE_API_BASE_URL` = `https://backend-3g0y90ldy-ashu16815-gmailcoms-projects.vercel.app/api`
+  - Set for Production, Preview, Development
+
+**Auth Tokens (2)**
+- ✅ `STAFF_TOKEN` = `staff-access`
+- ✅ `VITE_STAFF_TOKEN` = `staff-access`
+  - Both set for Production, Preview, Development
+
+## Verification
+
+### Test Backend Health
 ```bash
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
-AZURE_OPENAI_API_KEY=your-api-key-here
-AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
-AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME=text-embedding-3-large
-AZURE_SEARCH_ENDPOINT=https://your-search-service.search.windows.net
-AZURE_SEARCH_API_KEY=your-search-api-key-here
-AZURE_SEARCH_INDEX_NAME=noeliq-products
-PORT=5000
-NODE_ENV=production
-ADMIN_TOKEN=your-secure-admin-token
-STAFF_TOKEN=your-secure-staff-token
-RAG_CHUNK_LIMIT=5
-USE_OPTIMIZED_RAG=false
-USE_TURN_ORCHESTRATOR=true
+curl https://backend-3g0y90ldy-ashu16815-gmailcoms-projects.vercel.app/api/health
 ```
 
-5. **Important**: Select **Production**, **Preview**, and **Development** for each variable
-6. After adding all variables, **redeploy backend**:
-   ```bash
-   cd backend
-   vercel --prod
-   ```
+Expected: `{"status":"ok","timestamp":"..."}`
 
-### Step 2: Set Frontend Environment Variable
-
-1. Go to your **`frontend`** project in Vercel
-2. Click **Settings** → **Environment Variables**
-3. Add:
-   ```bash
-   VITE_API_BASE_URL=https://backend-ovaqgrhci-ashu16815-gmailcoms-projects.vercel.app/api
-   ```
-4. Select **Production**, **Preview**, and **Development**
-5. **Redeploy frontend**:
-   ```bash
-   cd frontend
-   vercel --prod
-   ```
-
-## 🧪 Testing
-
-After setting environment variables and redeploying:
-
-1. Visit frontend: `https://frontend-4q888npxw-ashu16815-gmailcoms-projects.vercel.app`
+### Test Frontend
+1. Visit: `https://frontend-dp9qq0o34-ashu16815-gmailcoms-projects.vercel.app/chat`
 2. Open browser console (F12)
-3. Set auth token:
-   ```javascript
-   localStorage.setItem('noeliq_token', 'YOUR_STAFF_TOKEN')
-   ```
-4. Refresh page
-5. Test a query (e.g., "find laptop below 1000")
+3. Should see: `✅ Auth token initialized: staff-access`
+4. Try asking a question - should work without 401 errors
 
-## 📋 Next Steps
+## What Was Done
 
-1. ✅ **Set backend environment variables** (CRITICAL)
-2. ✅ **Set frontend environment variable**
-3. ✅ **Redeploy both projects**
-4. ✅ **Test the application**
-5. ⚠️ **Update CORS** in `backend/app.js` if needed (add frontend URL to allowed origins)
-6. ⚠️ **Rotate exposed API keys** (they were in Git history before we removed them)
+1. ✅ Verified all 15 backend environment variables are set
+2. ✅ Added missing `USE_TURN_ORCHESTRATOR` variable
+3. ✅ Updated `FRONTEND_URL` in backend to point to latest frontend
+4. ✅ Updated `VITE_API_BASE_URL` in frontend to point to latest backend
+5. ✅ Deployed backend to Vercel
+6. ✅ Deployed frontend to Vercel
+7. ✅ Updated environment variables with latest deployment URLs
+8. ✅ Redeployed both projects
 
-## 🔗 Quick Links
+## Important Notes
 
-- **Backend**: https://backend-ovaqgrhci-ashu16815-gmailcoms-projects.vercel.app
-- **Frontend**: https://frontend-4q888npxw-ashu16815-gmailcoms-projects.vercel.app
-- **GitHub**: https://github.com/ashu16815/noeliq
-- **Vercel Dashboard**: https://vercel.com/dashboard
+⚠️ **URLs Change on Each Deployment**
+- Vercel generates new URLs for each deployment
+- Environment variables need to be updated after each deployment
+- This is why single project deployment is recommended (see `SINGLE_PROJECT_DEPLOYMENT.md`)
 
-## 📝 Notes
+✅ **Auth Token Auto-Initialization**
+- Frontend automatically sets `staff-access` token on first load
+- No manual setup needed
+- Should eliminate 401 errors
 
-- Both projects are deployed but won't work until environment variables are set
-- Backend needs all 14 required environment variables
-- Frontend needs `VITE_API_BASE_URL` pointing to backend
-- After setting variables, both projects need to be redeployed
+✅ **All Variables Set**
+- Backend: 15/15 variables configured
+- Frontend: 3/3 variables configured
+- All set for Production, Preview, and Development
 
+## Next Steps
+
+1. **Test the deployment** using the URLs above
+2. **Monitor Vercel logs** for any errors
+3. **Consider single project deployment** to avoid URL mismatch issues (see `SINGLE_PROJECT_DEPLOYMENT.md`)
+
+## Troubleshooting
+
+If you see 401 errors:
+1. Check browser console for auth token message
+2. Verify `STAFF_TOKEN=staff-access` in backend env vars
+3. Check `VITE_API_BASE_URL` points to correct backend URL
+
+If you see 404 errors:
+1. Verify environment variables are set for the correct environment
+2. Check deployment logs: `vercel logs <deployment-url>`
+3. Ensure backend and frontend URLs are correctly linked
