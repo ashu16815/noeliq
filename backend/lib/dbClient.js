@@ -5,14 +5,30 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Check if we're in a serverless/read-only environment (Vercel, AWS Lambda, etc.)
+const isServerlessEnv = () => {
+  return (
+    process.env.VERCEL === '1' ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.cwd().includes('/var/task') ||
+    process.cwd().includes('/tmp')
+  )
+}
+
+const IS_SERVERLESS = isServerlessEnv()
+
 // JSON file storage paths
 const DATA_DIR = path.join(__dirname, '../data')
 const SYNC_STATUS_FILE = path.join(DATA_DIR, 'sync-status.json')
 const LOGS_FILE = path.join(DATA_DIR, 'logs.json')
 const PARSED_PRODUCTS_FILE = path.join(DATA_DIR, 'parsed-products.json')
 
-// Ensure data directory exists
+// Ensure data directory exists (only in non-serverless environments)
 const ensureDataDir = async () => {
+  if (IS_SERVERLESS) {
+    // Skip directory creation in serverless - we won't write files anyway
+    return
+  }
   try {
     await fs.mkdir(DATA_DIR, { recursive: true })
   } catch (error) {
@@ -39,11 +55,26 @@ const readJSONFile = async (filePath, defaultValue = []) => {
 }
 
 const writeJSONFile = async (filePath, data) => {
+  // Skip file writes in serverless environments (read-only filesystem)
+  if (IS_SERVERLESS) {
+    console.log(`[dbClient] Skipping file write in serverless environment: ${path.basename(filePath)}`)
+    console.log(`[dbClient] Data preview:`, JSON.stringify(data).substring(0, 200))
+    return // Silently skip - don't throw error
+  }
+  
   try {
     await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8')
   } catch (error) {
+    // If error is EROFS (read-only filesystem), just log and continue
+    if (error.code === 'EROFS') {
+      console.warn(`[dbClient] Read-only filesystem detected, skipping write to ${path.basename(filePath)}`)
+      return
+    }
     console.error(`Error writing ${filePath}:`, error)
-    throw error
+    // Don't throw in production - logging failures shouldn't break the app
+    if (process.env.NODE_ENV === 'development') {
+      throw error
+    }
   }
 }
 
@@ -100,7 +131,10 @@ const dbClient = {
       await writeJSONFile(SYNC_STATUS_FILE, Array.from(statusMap.values()))
     } catch (error) {
       console.error('Error updating sync status:', error)
-      throw error
+      // Don't throw in serverless - file writes aren't critical
+      if (!IS_SERVERLESS && process.env.NODE_ENV === 'development') {
+        throw error
+      }
     }
   },
 
@@ -127,7 +161,10 @@ const dbClient = {
       await writeJSONFile(SYNC_STATUS_FILE, syncStatus)
     } catch (error) {
       console.error('Error updating sync status for SKU:', error)
-      throw error
+      // Don't throw in serverless - file writes aren't critical
+      if (!IS_SERVERLESS && process.env.NODE_ENV === 'development') {
+        throw error
+      }
     }
   },
 
@@ -146,6 +183,15 @@ const dbClient = {
 
   async storeLog(logData) {
     try {
+      // In serverless, just log to console instead of file
+      if (IS_SERVERLESS) {
+        console.log('[Log]', JSON.stringify({
+          ...logData,
+          timestamp: logData.timestamp ? new Date(logData.timestamp).toISOString() : new Date().toISOString(),
+        }))
+        return
+      }
+      
       const logs = await readJSONFile(LOGS_FILE, [])
       logs.push({
         ...logData,
@@ -156,8 +202,10 @@ const dbClient = {
       const trimmedLogs = logs.slice(-10000)
       await writeJSONFile(LOGS_FILE, trimmedLogs)
     } catch (error) {
+      // In serverless or if write fails, just log to console
       console.error('Error storing log:', error)
-      throw error
+      console.log('[Log]', JSON.stringify(logData))
+      // Don't throw - logging failures shouldn't break the app
     }
   },
 
@@ -187,7 +235,10 @@ const dbClient = {
       console.log(`Stored ${products.length} parsed products from ${sourceLabel}`)
     } catch (error) {
       console.error('Error storing parsed products:', error)
-      throw error
+      // Don't throw in serverless - file writes aren't critical for runtime
+      if (!IS_SERVERLESS && process.env.NODE_ENV === 'development') {
+        throw error
+      }
     }
   },
 
@@ -227,7 +278,10 @@ const dbClient = {
       console.log(`Stored ${stores.length} stores`)
     } catch (error) {
       console.error('Error storing stores:', error)
-      throw error
+      // Don't throw in serverless - file writes aren't critical for runtime
+      if (!IS_SERVERLESS && process.env.NODE_ENV === 'development') {
+        throw error
+      }
     }
   },
 
