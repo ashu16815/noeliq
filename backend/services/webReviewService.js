@@ -1,5 +1,5 @@
 // Web Review Service
-// Fetches and summarizes web reviews for products using web search API
+// Fetches and summarizes web reviews for products using SerpAPI (Google Search)
 
 import axios from 'axios'
 import { chatClient } from '../lib/azureOpenAIClient.js'
@@ -25,7 +25,7 @@ const webReviewService = {
       // Build search queries
       const queries = this.buildReviewQueries(brand, model, category)
       
-      // Fetch web search results
+      // Fetch web search results using SerpAPI
       const searchResults = await this.performWebSearch(queries)
       
       if (!searchResults || searchResults.length === 0) {
@@ -52,103 +52,99 @@ const webReviewService = {
   },
 
   /**
-   * Build review-oriented search queries with site filters for reputable review sites
+   * Build review-oriented search queries for SerpAPI
    */
   buildReviewQueries(brand, model, category) {
-    // List of reputable review sites to prioritize
-    const reviewSites = [
-      'site:trustedreviews.com',
-      'site:techradar.com',
-      'site:whathifi.com',
-      'site:cnet.com',
-      'site:theverge.com',
-      'site:engadget.com',
-    ]
-    const siteFilter = reviewSites.join(' OR ')
-
     const baseQueries = [
-      `${brand} ${model} reviews pros cons (${siteFilter})`,
-      `${brand} ${model} customer reviews (${siteFilter})`,
-      `${brand} ${model} review (${siteFilter})`,
+      `${brand} ${model} review pros cons`,
+      `${brand} ${model} customer reviews`,
     ]
 
     // Category-specific queries
     if (category?.toLowerCase().includes('phone') || category?.toLowerCase().includes('smartphone')) {
-      baseQueries.push(`${brand} ${model} camera battery display review (${siteFilter})`)
+      baseQueries.push(`${brand} ${model} camera battery display review`)
     } else if (category?.toLowerCase().includes('laptop') || category?.toLowerCase().includes('notebook')) {
-      baseQueries.push(`${brand} ${model} performance battery review (${siteFilter})`)
+      baseQueries.push(`${brand} ${model} performance battery review`)
     } else if (category?.toLowerCase().includes('gaming')) {
-      baseQueries.push(`${brand} ${model} gaming performance review (${siteFilter})`)
+      baseQueries.push(`${brand} ${model} gaming performance review`)
     }
 
     return baseQueries
   },
 
   /**
-   * Perform web search using Azure Bing Grounding Search API or Bing Search API
+   * Fetch SerpAPI snippets for a query
    */
-  async performWebSearch(queries) {
-    const searchProvider = process.env.WEB_SEARCH_PROVIDER || 'bing'
-    const searchEndpoint = process.env.WEB_SEARCH_ENDPOINT
-    const searchApiKey = process.env.WEB_SEARCH_API_KEY
-    const maxResults = parseInt(process.env.WEB_SEARCH_MAX_RESULTS || '8', 10)
+  async fetchSerpSnippets(query) {
+    const serpEndpoint = process.env.SERPAPI_ENDPOINT || 'https://serpapi.com/search.json'
+    const serpApiKey = process.env.SERPAPI_API_KEY
+    const location = process.env.SERPAPI_LOCATION || 'Auckland, New Zealand'
+    const gl = process.env.SERPAPI_GL || 'nz'
+    const hl = process.env.SERPAPI_HL || 'en'
+    const num = parseInt(process.env.SERPAPI_RESULTS_PER_QUERY || '8', 10)
 
-    if (!searchEndpoint || !searchApiKey) {
-      console.warn(`[WebReview] ⚠️ Web search API not configured (WEB_SEARCH_ENDPOINT or WEB_SEARCH_API_KEY missing)`)
+    if (!serpApiKey) {
+      console.warn(`[WebReview] ⚠️ SerpAPI not configured (SERPAPI_API_KEY missing)`)
       return []
     }
 
     try {
+      console.log(`[WebReview] Fetching from SerpAPI: "${query}"`)
+      
+      const response = await axios.get(serpEndpoint, {
+        params: {
+          engine: 'google',
+          q: query,
+          api_key: serpApiKey,
+          location,
+          gl,
+          hl,
+          num,
+        },
+        timeout: 10000, // 10 second timeout
+      })
+
+      const organicResults = response.data?.organic_results || []
+      
+      const snippets = organicResults
+        .map(r => ({
+          title: r.title || '',
+          snippet: r.snippet || '',
+          url: r.link || r.displayed_link || '',
+        }))
+        .filter(r => r.snippet && r.snippet.trim().length > 0)
+
+      console.log(`[WebReview] Retrieved ${snippets.length} results from SerpAPI`)
+      return snippets
+    } catch (error) {
+      console.error(`[WebReview] ❌ SerpAPI error:`, error.message)
+      if (error.response) {
+        console.error(`[WebReview] Status: ${error.response.status}`)
+        console.error(`[WebReview] Response:`, JSON.stringify(error.response.data, null, 2))
+      }
+      return []
+    }
+  },
+
+  /**
+   * Perform web search using SerpAPI
+   */
+  async performWebSearch(queries) {
+    try {
       const allResults = []
 
-      // Search for each query
-      for (const query of queries.slice(0, 3)) { // Limit to 3 queries to avoid rate limits
+      // Search for each query (limit to 2 queries to avoid rate limits)
+      for (const query of queries.slice(0, 2)) {
         try {
-          let response
-          
-          if (searchProvider === 'bing_grounding') {
-            // Bing Grounding Search API
-            response = await axios.get(searchEndpoint, {
-              params: {
-                q: query,
-                count: Math.min(maxResults, 5), // Get 5 results per query
-                mkt: process.env.WEB_SEARCH_REGION || 'en-NZ',
-                safeSearch: 'Strict',
-              },
-              headers: {
-                'Ocp-Apim-Subscription-Key': searchApiKey,
-              },
-              timeout: 5000, // 5 second timeout
-            })
-          } else {
-            // Standard Bing Search API (fallback)
-            response = await axios.get(searchEndpoint, {
-              params: {
-                q: query,
-                count: Math.min(maxResults, 5),
-                mkt: process.env.WEB_SEARCH_REGION || 'en-NZ',
-                safeSearch: 'Moderate',
-              },
-              headers: {
-                'Ocp-Apim-Subscription-Key': searchApiKey,
-              },
-              timeout: 5000,
-            })
-          }
-
-          // Handle both Bing Grounding Search and standard Bing Search response formats
-          const results = response.data?.webPages?.value || []
-          allResults.push(...results.map(r => ({
-            title: r.name || r.title || '',
-            snippet: r.snippet || r.description || '',
-            url: r.url || r.displayUrl || '',
+          const snippets = await this.fetchSerpSnippets(query)
+          allResults.push(...snippets.map(s => ({
+            title: s.title,
+            snippet: s.snippet,
+            url: s.url,
             query,
           })))
         } catch (error) {
           console.warn(`[WebReview] Search query failed: "${query}"`, error.message)
-          if (error.response) {
-            console.warn(`[WebReview] Response status: ${error.response.status}, data:`, error.response.data)
-          }
           // Continue with other queries
         }
       }
@@ -163,10 +159,11 @@ const webReviewService = {
         }
       }
 
-      console.log(`[WebReview] Retrieved ${uniqueResults.length} unique results from ${searchProvider}`)
+      const maxResults = parseInt(process.env.SERPAPI_RESULTS_PER_QUERY || '8', 10)
+      console.log(`[WebReview] Total unique results: ${uniqueResults.length}`)
       return uniqueResults.slice(0, maxResults)
     } catch (error) {
-      console.error(`[WebReview] ❌ Web search API error:`, error.message)
+      console.error(`[WebReview] ❌ Web search error:`, error.message)
       return []
     }
   },
@@ -176,12 +173,27 @@ const webReviewService = {
    */
   async summarizeReviews(searchResults, brand, model, category) {
     try {
-      // Build context from search results
-      const searchContext = searchResults.map((r, idx) => 
-        `[Source ${idx + 1}]\nTitle: ${r.title}\nSummary: ${r.snippet}`
-      ).join('\n\n')
+      // Build context from search results - combine title and snippet
+      const snippetsText = searchResults
+        .map((r, idx) => `${r.title} — ${r.snippet}`)
+        .filter(s => s.trim().length > 0)
+        .slice(0, 10) // Limit to top 10 snippets
+        .join('\n\n')
 
-      const systemPrompt = `You are a review summarizer. Given search results about a product, extract and synthesize safe, high-level insights about what customers and reviewers commonly say.
+      if (!snippetsText || snippetsText.length < 50) {
+        console.warn(`[WebReview] ⚠️ Insufficient snippets for summarization`)
+        return {
+          overall_sentiment: null,
+          star_rating_band: null,
+          top_pros: [],
+          top_cons: [],
+          best_for: [],
+          not_ideal_for: [],
+          notable_issues: [],
+        }
+      }
+
+      const systemPrompt = `You are a review summarizer. Given search results about a product from various public web sources, extract and synthesize safe, high-level insights about what customers and reviewers commonly say.
 
 Rules:
 - NEVER quote specific sources, websites, or reviewers by name
@@ -191,6 +203,7 @@ Rules:
 - Focus on pros/cons, use cases, and notable patterns
 - If multiple sources agree on a rating, you can say "around X/5 from multiple review sites"
 - Keep it concise and actionable
+- Do NOT quote sentences verbatim - rephrase in your own words
 
 Return ONLY valid JSON with this structure:
 {
@@ -205,10 +218,10 @@ Return ONLY valid JSON with this structure:
 
       const userPrompt = `Product: ${brand} ${model}${category ? ` (${category})` : ''}
 
-Search Results:
-${searchContext}
+Search Results from various public sources:
+${snippetsText}
 
-Summarize the reviews into the JSON structure above.`
+Summarize the reviews into the JSON structure above. Extract patterns across multiple sources, not individual quotes.`
 
       const response = await chatClient.getChatCompletions([
         { role: 'system', content: systemPrompt },
@@ -254,4 +267,3 @@ Summarize the reviews into the JSON structure above.`
 }
 
 export default webReviewService
-

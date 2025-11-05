@@ -1,5 +1,5 @@
 // Web Comparison Service
-// Compares multiple SKUs using web search data
+// Compares multiple SKUs using SerpAPI (Google Search)
 
 import axios from 'axios'
 import { chatClient } from '../lib/azureOpenAIClient.js'
@@ -25,10 +25,10 @@ const webComparisonService = {
         return null
       }
 
-      // Build comparison queries with site filters
+      // Build comparison queries
       const queries = this.buildComparisonQueries(brandLeft, modelLeft, brandRight, modelRight)
 
-      // Fetch web search results
+      // Fetch web search results using SerpAPI
       const searchResults = await this.performWebSearch(queries)
       
       if (!searchResults || searchResults.length === 0) {
@@ -60,91 +60,88 @@ const webComparisonService = {
   },
 
   /**
-   * Build comparison queries with site filters
+   * Build comparison queries for SerpAPI
    */
   buildComparisonQueries(brandLeft, modelLeft, brandRight, modelRight) {
-    const reviewSites = [
-      'site:trustedreviews.com',
-      'site:techradar.com',
-      'site:whathifi.com',
-      'site:cnet.com',
-      'site:theverge.com',
-      'site:engadget.com',
-    ]
-    const siteFilter = reviewSites.join(' OR ')
-
     return [
-      `${brandLeft} ${modelLeft} vs ${brandRight} ${modelRight} (${siteFilter})`,
-      `${brandLeft} ${modelLeft} vs ${brandRight} ${modelRight} battery camera performance (${siteFilter})`,
-      `${brandLeft} ${modelLeft} long term review (${siteFilter})`,
-      `${brandRight} ${modelRight} long term review (${siteFilter})`,
+      `${brandLeft} ${modelLeft} vs ${brandRight} ${modelRight}`,
+      `${brandLeft} ${modelLeft} vs ${brandRight} ${modelRight} battery camera performance`,
+      `${brandLeft} ${modelLeft} review battery camera performance`,
+      `${brandRight} ${modelRight} review battery camera performance`,
     ]
   },
 
   /**
-   * Perform web search using Azure Bing Grounding Search API or Bing Search API
+   * Fetch SerpAPI snippets for a query
    */
-  async performWebSearch(queries) {
-    const searchProvider = process.env.WEB_SEARCH_PROVIDER || 'bing'
-    const searchEndpoint = process.env.WEB_SEARCH_ENDPOINT
-    const searchApiKey = process.env.WEB_SEARCH_API_KEY
-    const maxResults = parseInt(process.env.WEB_SEARCH_MAX_RESULTS || '8', 10)
+  async fetchSerpSnippets(query) {
+    const serpEndpoint = process.env.SERPAPI_ENDPOINT || 'https://serpapi.com/search.json'
+    const serpApiKey = process.env.SERPAPI_API_KEY
+    const location = process.env.SERPAPI_LOCATION || 'Auckland, New Zealand'
+    const gl = process.env.SERPAPI_GL || 'nz'
+    const hl = process.env.SERPAPI_HL || 'en'
+    const num = parseInt(process.env.SERPAPI_RESULTS_PER_QUERY || '8', 10)
 
-    if (!searchEndpoint || !searchApiKey) {
-      console.warn(`[WebComparison] ⚠️ Web search API not configured`)
+    if (!serpApiKey) {
+      console.warn(`[WebComparison] ⚠️ SerpAPI not configured`)
       return []
     }
 
+    try {
+      console.log(`[WebComparison] Fetching from SerpAPI: "${query}"`)
+      
+      const response = await axios.get(serpEndpoint, {
+        params: {
+          engine: 'google',
+          q: query,
+          api_key: serpApiKey,
+          location,
+          gl,
+          hl,
+          num,
+        },
+        timeout: 10000,
+      })
+
+      const organicResults = response.data?.organic_results || []
+      
+      const snippets = organicResults
+        .map(r => ({
+          title: r.title || '',
+          snippet: r.snippet || '',
+          url: r.link || r.displayed_link || '',
+        }))
+        .filter(r => r.snippet && r.snippet.trim().length > 0)
+
+      console.log(`[WebComparison] Retrieved ${snippets.length} results from SerpAPI`)
+      return snippets
+    } catch (error) {
+      console.error(`[WebComparison] ❌ SerpAPI error:`, error.message)
+      if (error.response) {
+        console.error(`[WebComparison] Status: ${error.response.status}`)
+      }
+      return []
+    }
+  },
+
+  /**
+   * Perform web search using SerpAPI
+   */
+  async performWebSearch(queries) {
     try {
       const allResults = []
 
       for (const query of queries.slice(0, 4)) {
         try {
-          let response
-          
-          if (searchProvider === 'bing_grounding') {
-            // Bing Grounding Search API
-            response = await axios.get(searchEndpoint, {
-              params: {
-                q: query,
-                count: Math.min(maxResults, 5),
-                mkt: process.env.WEB_SEARCH_REGION || 'en-NZ',
-                safeSearch: 'Strict',
-              },
-              headers: {
-                'Ocp-Apim-Subscription-Key': searchApiKey,
-              },
-              timeout: 5000,
-            })
-          } else {
-            // Standard Bing Search API (fallback)
-            response = await axios.get(searchEndpoint, {
-              params: {
-                q: query,
-                count: Math.min(maxResults, 5),
-                mkt: process.env.WEB_SEARCH_REGION || 'en-NZ',
-                safeSearch: 'Moderate',
-              },
-              headers: {
-                'Ocp-Apim-Subscription-Key': searchApiKey,
-              },
-              timeout: 5000,
-            })
-          }
-
-          // Handle both Bing Grounding Search and standard Bing Search response formats
-          const results = response.data?.webPages?.value || []
-          allResults.push(...results.map(r => ({
-            title: r.name || r.title || '',
-            snippet: r.snippet || r.description || '',
-            url: r.url || r.displayUrl || '',
+          const snippets = await this.fetchSerpSnippets(query)
+          allResults.push(...snippets.map(s => ({
+            title: s.title,
+            snippet: s.snippet,
+            url: s.url,
             query,
           })))
         } catch (error) {
           console.warn(`[WebComparison] Search query failed: "${query}"`, error.message)
-          if (error.response) {
-            console.warn(`[WebComparison] Response status: ${error.response.status}`)
-          }
         }
       }
 
@@ -158,10 +155,11 @@ const webComparisonService = {
         }
       }
 
-      console.log(`[WebComparison] Retrieved ${uniqueResults.length} unique results from ${searchProvider}`)
+      const maxResults = parseInt(process.env.SERPAPI_RESULTS_PER_QUERY || '8', 10)
+      console.log(`[WebComparison] Total unique results: ${uniqueResults.length}`)
       return uniqueResults.slice(0, maxResults)
     } catch (error) {
-      console.error(`[WebComparison] ❌ Web search API error:`, error.message)
+      console.error(`[WebComparison] ❌ Web search error:`, error.message)
       return []
     }
   },
@@ -171,11 +169,26 @@ const webComparisonService = {
    */
   async summarizeComparison(searchResults, brandLeft, modelLeft, brandRight, modelRight) {
     try {
-      const searchContext = searchResults.map((r, idx) => 
-        `[Source ${idx + 1}]\nTitle: ${r.title}\nSummary: ${r.snippet}`
-      ).join('\n\n')
+      // Build context from search results - combine title and snippet
+      const snippetsText = searchResults
+        .map((r, idx) => `${r.title} — ${r.snippet}`)
+        .filter(s => s.trim().length > 0)
+        .slice(0, 10)
+        .join('\n\n')
 
-      const systemPrompt = `You are a product comparison synthesizer. Given search results comparing two products, extract real-world differences customers care about.
+      if (!snippetsText || snippetsText.length < 50) {
+        console.warn(`[WebComparison] ⚠️ Insufficient snippets for comparison`)
+        return {
+          headline_summary: null,
+          areas_better_for_left: [],
+          areas_better_for_right: [],
+          tie_or_neutral_areas: [],
+          recommendation_by_use_case: [],
+          notable_issues_both: [],
+        }
+      }
+
+      const systemPrompt = `You are a product comparison synthesizer. Given search results comparing two products from various public web sources, extract real-world differences customers care about.
 
 Rules:
 - NEVER quote specific sources, websites, or reviewers by name
@@ -185,6 +198,7 @@ Rules:
 - Focus on: camera, battery, performance, screen, ecosystem, longevity
 - Ground statements in typical review patterns
 - Never guarantee future software updates or compatibility beyond what's stated
+- Do NOT quote sentences verbatim - rephrase in your own words
 
 Return ONLY valid JSON with this structure:
 {
@@ -204,10 +218,10 @@ Return ONLY valid JSON with this structure:
 
       const userPrompt = `Compare: ${brandLeft} ${modelLeft} (left) vs ${brandRight} ${modelRight} (right)
 
-Search Results:
-${searchContext}
+Search Results from various public sources:
+${snippetsText}
 
-Synthesize the comparison into the JSON structure above.`
+Synthesize the comparison into the JSON structure above. Extract patterns across multiple sources.`
 
       const response = await chatClient.getChatCompletions([
         { role: 'system', content: systemPrompt },
@@ -251,4 +265,3 @@ Synthesize the comparison into the JSON structure above.`
 }
 
 export default webComparisonService
-
