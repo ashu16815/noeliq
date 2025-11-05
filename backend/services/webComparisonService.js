@@ -25,13 +25,8 @@ const webComparisonService = {
         return null
       }
 
-      // Build comparison queries
-      const queries = [
-        `${brandLeft} ${modelLeft} vs ${brandRight} ${modelRight}`,
-        `${brandLeft} ${modelLeft} vs ${brandRight} ${modelRight} battery camera performance`,
-        `${brandLeft} ${modelLeft} long term review`,
-        `${brandRight} ${modelRight} long term review`,
-      ]
+      // Build comparison queries with site filters
+      const queries = this.buildComparisonQueries(brandLeft, modelLeft, brandRight, modelRight)
 
       // Fetch web search results
       const searchResults = await this.performWebSearch(queries)
@@ -65,9 +60,32 @@ const webComparisonService = {
   },
 
   /**
-   * Perform web search using Azure Bing Search API
+   * Build comparison queries with site filters
+   */
+  buildComparisonQueries(brandLeft, modelLeft, brandRight, modelRight) {
+    const reviewSites = [
+      'site:trustedreviews.com',
+      'site:techradar.com',
+      'site:whathifi.com',
+      'site:cnet.com',
+      'site:theverge.com',
+      'site:engadget.com',
+    ]
+    const siteFilter = reviewSites.join(' OR ')
+
+    return [
+      `${brandLeft} ${modelLeft} vs ${brandRight} ${modelRight} (${siteFilter})`,
+      `${brandLeft} ${modelLeft} vs ${brandRight} ${modelRight} battery camera performance (${siteFilter})`,
+      `${brandLeft} ${modelLeft} long term review (${siteFilter})`,
+      `${brandRight} ${modelRight} long term review (${siteFilter})`,
+    ]
+  },
+
+  /**
+   * Perform web search using Azure Bing Grounding Search API or Bing Search API
    */
   async performWebSearch(queries) {
+    const searchProvider = process.env.WEB_SEARCH_PROVIDER || 'bing'
     const searchEndpoint = process.env.WEB_SEARCH_ENDPOINT
     const searchApiKey = process.env.WEB_SEARCH_API_KEY
     const maxResults = parseInt(process.env.WEB_SEARCH_MAX_RESULTS || '8', 10)
@@ -82,28 +100,51 @@ const webComparisonService = {
 
       for (const query of queries.slice(0, 4)) {
         try {
-          const response = await axios.get(searchEndpoint, {
-            params: {
-              q: query,
-              count: Math.min(maxResults, 5),
-              mkt: process.env.WEB_SEARCH_REGION || 'en-NZ',
-              safeSearch: 'Moderate',
-            },
-            headers: {
-              'Ocp-Apim-Subscription-Key': searchApiKey,
-            },
-            timeout: 5000,
-          })
+          let response
+          
+          if (searchProvider === 'bing_grounding') {
+            // Bing Grounding Search API
+            response = await axios.get(searchEndpoint, {
+              params: {
+                q: query,
+                count: Math.min(maxResults, 5),
+                mkt: process.env.WEB_SEARCH_REGION || 'en-NZ',
+                safeSearch: 'Strict',
+              },
+              headers: {
+                'Ocp-Apim-Subscription-Key': searchApiKey,
+              },
+              timeout: 5000,
+            })
+          } else {
+            // Standard Bing Search API (fallback)
+            response = await axios.get(searchEndpoint, {
+              params: {
+                q: query,
+                count: Math.min(maxResults, 5),
+                mkt: process.env.WEB_SEARCH_REGION || 'en-NZ',
+                safeSearch: 'Moderate',
+              },
+              headers: {
+                'Ocp-Apim-Subscription-Key': searchApiKey,
+              },
+              timeout: 5000,
+            })
+          }
 
+          // Handle both Bing Grounding Search and standard Bing Search response formats
           const results = response.data?.webPages?.value || []
           allResults.push(...results.map(r => ({
-            title: r.name || '',
-            snippet: r.snippet || '',
-            url: r.url || '',
+            title: r.name || r.title || '',
+            snippet: r.snippet || r.description || '',
+            url: r.url || r.displayUrl || '',
             query,
           })))
         } catch (error) {
           console.warn(`[WebComparison] Search query failed: "${query}"`, error.message)
+          if (error.response) {
+            console.warn(`[WebComparison] Response status: ${error.response.status}`)
+          }
         }
       }
 
@@ -117,6 +158,7 @@ const webComparisonService = {
         }
       }
 
+      console.log(`[WebComparison] Retrieved ${uniqueResults.length} unique results from ${searchProvider}`)
       return uniqueResults.slice(0, maxResults)
     } catch (error) {
       console.error(`[WebComparison] ❌ Web search API error:`, error.message)

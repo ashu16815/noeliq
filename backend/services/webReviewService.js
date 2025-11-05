@@ -52,31 +52,43 @@ const webReviewService = {
   },
 
   /**
-   * Build review-oriented search queries
+   * Build review-oriented search queries with site filters for reputable review sites
    */
   buildReviewQueries(brand, model, category) {
+    // List of reputable review sites to prioritize
+    const reviewSites = [
+      'site:trustedreviews.com',
+      'site:techradar.com',
+      'site:whathifi.com',
+      'site:cnet.com',
+      'site:theverge.com',
+      'site:engadget.com',
+    ]
+    const siteFilter = reviewSites.join(' OR ')
+
     const baseQueries = [
-      `${brand} ${model} review`,
-      `${brand} ${model} customer reviews`,
-      `${brand} ${model} pros cons`,
+      `${brand} ${model} reviews pros cons (${siteFilter})`,
+      `${brand} ${model} customer reviews (${siteFilter})`,
+      `${brand} ${model} review (${siteFilter})`,
     ]
 
     // Category-specific queries
     if (category?.toLowerCase().includes('phone') || category?.toLowerCase().includes('smartphone')) {
-      baseQueries.push(`${brand} ${model} camera battery display review`)
+      baseQueries.push(`${brand} ${model} camera battery display review (${siteFilter})`)
     } else if (category?.toLowerCase().includes('laptop') || category?.toLowerCase().includes('notebook')) {
-      baseQueries.push(`${brand} ${model} performance battery review`)
+      baseQueries.push(`${brand} ${model} performance battery review (${siteFilter})`)
     } else if (category?.toLowerCase().includes('gaming')) {
-      baseQueries.push(`${brand} ${model} gaming performance review`)
+      baseQueries.push(`${brand} ${model} gaming performance review (${siteFilter})`)
     }
 
     return baseQueries
   },
 
   /**
-   * Perform web search using Azure Bing Search API
+   * Perform web search using Azure Bing Grounding Search API or Bing Search API
    */
   async performWebSearch(queries) {
+    const searchProvider = process.env.WEB_SEARCH_PROVIDER || 'bing'
     const searchEndpoint = process.env.WEB_SEARCH_ENDPOINT
     const searchApiKey = process.env.WEB_SEARCH_API_KEY
     const maxResults = parseInt(process.env.WEB_SEARCH_MAX_RESULTS || '8', 10)
@@ -92,28 +104,51 @@ const webReviewService = {
       // Search for each query
       for (const query of queries.slice(0, 3)) { // Limit to 3 queries to avoid rate limits
         try {
-          const response = await axios.get(searchEndpoint, {
-            params: {
-              q: query,
-              count: Math.min(maxResults, 5), // Get 5 results per query
-              mkt: process.env.WEB_SEARCH_REGION || 'en-NZ',
-              safeSearch: 'Moderate',
-            },
-            headers: {
-              'Ocp-Apim-Subscription-Key': searchApiKey,
-            },
-            timeout: 5000, // 5 second timeout
-          })
+          let response
+          
+          if (searchProvider === 'bing_grounding') {
+            // Bing Grounding Search API
+            response = await axios.get(searchEndpoint, {
+              params: {
+                q: query,
+                count: Math.min(maxResults, 5), // Get 5 results per query
+                mkt: process.env.WEB_SEARCH_REGION || 'en-NZ',
+                safeSearch: 'Strict',
+              },
+              headers: {
+                'Ocp-Apim-Subscription-Key': searchApiKey,
+              },
+              timeout: 5000, // 5 second timeout
+            })
+          } else {
+            // Standard Bing Search API (fallback)
+            response = await axios.get(searchEndpoint, {
+              params: {
+                q: query,
+                count: Math.min(maxResults, 5),
+                mkt: process.env.WEB_SEARCH_REGION || 'en-NZ',
+                safeSearch: 'Moderate',
+              },
+              headers: {
+                'Ocp-Apim-Subscription-Key': searchApiKey,
+              },
+              timeout: 5000,
+            })
+          }
 
+          // Handle both Bing Grounding Search and standard Bing Search response formats
           const results = response.data?.webPages?.value || []
           allResults.push(...results.map(r => ({
-            title: r.name || '',
-            snippet: r.snippet || '',
-            url: r.url || '',
+            title: r.name || r.title || '',
+            snippet: r.snippet || r.description || '',
+            url: r.url || r.displayUrl || '',
             query,
           })))
         } catch (error) {
           console.warn(`[WebReview] Search query failed: "${query}"`, error.message)
+          if (error.response) {
+            console.warn(`[WebReview] Response status: ${error.response.status}, data:`, error.response.data)
+          }
           // Continue with other queries
         }
       }
@@ -128,6 +163,7 @@ const webReviewService = {
         }
       }
 
+      console.log(`[WebReview] Retrieved ${uniqueResults.length} unique results from ${searchProvider}`)
       return uniqueResults.slice(0, maxResults)
     } catch (error) {
       console.error(`[WebReview] ❌ Web search API error:`, error.message)
