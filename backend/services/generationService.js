@@ -28,6 +28,14 @@ You MAY also incorporate generic, broadly known, non-sensitive review sentiment 
 
 If you provide general sentiment, keep it high-level and do not reference any confidential source or any specific named reviewer.
 
+**Web Review Data (if provided):**
+- You will sometimes receive web_review_summary and web_comparison_summary data.
+- Use web_review_summary to describe what customers and reviewers commonly like or dislike, but keep it generic and safe.
+- Use web_comparison_summary when the user wants to compare products, focusing on use case and trade-offs, not spec lists.
+- If there is any conflict between internal structured product data and web summaries, INTERNAL DATA WINS.
+- Never quote or attribute to a specific website, brand, review platform, or named reviewer; summarise across sources instead.
+- Phrase external sentiment as 'Reviewers often say…', 'Customers online commonly report…', or 'Typical feedback is…'.
+
 Be honest about pros and trade-offs. It's okay to say 'This one is brighter, but the other one does motion better for live sport.'
 
 Always try to help the rep make the sale today: mention if it's in stock here, where else it can be picked up today, or what the closest alternative is if it's out of stock.
@@ -77,10 +85,34 @@ You must return a structured JSON response with these exact fields:
     "key_diff": "string | null"
   },
   "sentiment_note": "generic safe external sentiment / common feedback / who this is good for",
-  "compliance_flags": ["string notes if you had to refuse something or avoid margin etc."]
+  "compliance_flags": ["string notes if you had to refuse something or avoid margin etc."],
+  "customer_voice": {
+    "overall_sentiment": "string | null (e.g. 'mostly positive', 'mixed')",
+    "top_pros": ["string"],
+    "top_cons": ["string"],
+    "best_for": ["string"],
+    "not_ideal_for": ["string"],
+    "notable_issues": ["string"]
+  },
+  "comparison_voice": {
+    "enabled": "boolean (true if comparing products)",
+    "headline_summary": "string | null",
+    "areas_better_left": ["string"],
+    "areas_better_right": ["string"],
+    "tie_or_neutral_areas": ["string"],
+    "recommendation_by_use_case": [
+      {
+        "use_case": "string",
+        "better_choice": "left|right|either",
+        "explanation": "string"
+      }
+    ]
+  }
 }
 
-If you can't fill a field, set it to null or an empty array. Do not hallucinate.`
+If you can't fill a field, set it to null or an empty array. Do not hallucinate.
+
+Note: customer_voice and comparison_voice should be populated when web review data is available. If web review data is not provided, these fields can be null or empty.`
 
 // Load system prompt template
 // Try to load from file first (for local development), fallback to embedded prompt
@@ -188,6 +220,8 @@ const generationService = {
     review_summary = null, // Review summary from enricher (preferred)
     compare_list = [], // List of SKUs being compared
     productRecords = {}, // Map of SKU -> {name, category, price} for all products in context
+    web_review_summary = null, // Web review summary from webReviewService
+    web_comparison_summary = null, // Web comparison summary from webComparisonService
   }) {
     try {
       // Use context_summary if provided (from condenser), otherwise build from chunks
@@ -236,6 +270,59 @@ const generationService = {
       const reviewBlocks = []
       if (reviewSummaryText) {
         reviewBlocks.push(`Review Summary:\n${reviewSummaryText}`)
+      }
+
+      // Add web review context if available
+      const webReviewBlocks = []
+      if (web_review_summary) {
+        const webReviewContext = []
+        if (web_review_summary.overall_sentiment) {
+          webReviewContext.push(`Overall sentiment: ${web_review_summary.overall_sentiment}`)
+        }
+        if (web_review_summary.top_pros && web_review_summary.top_pros.length > 0) {
+          webReviewContext.push(`Common pros: ${web_review_summary.top_pros.join(', ')}`)
+        }
+        if (web_review_summary.top_cons && web_review_summary.top_cons.length > 0) {
+          webReviewContext.push(`Common cons: ${web_review_summary.top_cons.join(', ')}`)
+        }
+        if (web_review_summary.best_for && web_review_summary.best_for.length > 0) {
+          webReviewContext.push(`Best for: ${web_review_summary.best_for.join(', ')}`)
+        }
+        if (web_review_summary.not_ideal_for && web_review_summary.not_ideal_for.length > 0) {
+          webReviewContext.push(`Not ideal for: ${web_review_summary.not_ideal_for.join(', ')}`)
+        }
+        if (web_review_summary.notable_issues && web_review_summary.notable_issues.length > 0) {
+          webReviewContext.push(`Notable issues: ${web_review_summary.notable_issues.join(', ')}`)
+        }
+        
+        if (webReviewContext.length > 0) {
+          webReviewBlocks.push(`Web Review Summary (from multiple sources):\n${webReviewContext.join('\n')}`)
+        }
+      }
+
+      // Add web comparison context if available
+      const webComparisonBlocks = []
+      if (web_comparison_summary) {
+        const comparisonContext = []
+        if (web_comparison_summary.headline_summary) {
+          comparisonContext.push(`Comparison summary: ${web_comparison_summary.headline_summary}`)
+        }
+        if (web_comparison_summary.areas_better_for_left && web_comparison_summary.areas_better_for_left.length > 0) {
+          comparisonContext.push(`Left product better at: ${web_comparison_summary.areas_better_for_left.join(', ')}`)
+        }
+        if (web_comparison_summary.areas_better_for_right && web_comparison_summary.areas_better_for_right.length > 0) {
+          comparisonContext.push(`Right product better at: ${web_comparison_summary.areas_better_for_right.join(', ')}`)
+        }
+        if (web_comparison_summary.recommendation_by_use_case && web_comparison_summary.recommendation_by_use_case.length > 0) {
+          const useCaseRecs = web_comparison_summary.recommendation_by_use_case
+            .map(rec => `${rec.use_case}: ${rec.better_choice} (${rec.explanation})`)
+            .join('\n')
+          comparisonContext.push(`Use case recommendations:\n${useCaseRecs}`)
+        }
+        
+        if (comparisonContext.length > 0) {
+          webComparisonBlocks.push(`Web Comparison Summary:\n${comparisonContext.join('\n')}`)
+        }
       }
 
       // Build compare list context if comparing
@@ -323,7 +410,7 @@ const generationService = {
 ${intentBlocks.length > 0 ? `${intentBlocks.join('\n\n')}\n\n` : ''}${activeContextBlocks.length > 0 ? `Active Context:\n${activeContextBlocks.join(', ')}\n\n` : ''}${compareBlocks.length > 0 ? `${compareBlocks.join('\n')}\n\n` : ''}Context:
 ${truncatedContext}
 
-${reviewBlocks.length > 0 ? `\n${reviewBlocks.join('\n\n')}\n` : ''}${businessRules.length > 0 ? `\nAdditional information:\n${businessRules.join('\n')}` : ''}
+${reviewBlocks.length > 0 ? `\n${reviewBlocks.join('\n\n')}\n` : ''}${webReviewBlocks.length > 0 ? `\n${webReviewBlocks.join('\n\n')}\n` : ''}${webComparisonBlocks.length > 0 ? `\n${webComparisonBlocks.join('\n\n')}\n` : ''}${businessRules.length > 0 ? `\nAdditional information:\n${businessRules.join('\n')}` : ''}
 
 ${stockInfo.length > 0 ? `Stock availability:\n${stockInfo.join('\n')}` : ''}
 

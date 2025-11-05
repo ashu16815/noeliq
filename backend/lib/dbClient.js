@@ -296,6 +296,31 @@ const dbClient = {
       return []
     }
   },
+
+  // Web Review Cache
+  async getWebReviewCache() {
+    try {
+      const WEB_REVIEW_CACHE_FILE = path.join(DATA_DIR, 'web-review-cache.json')
+      const cache = await readJSONFile(WEB_REVIEW_CACHE_FILE, {
+        reviews: {},
+        comparisons: {},
+      })
+      return cache
+    } catch (error) {
+      console.error('Error getting web review cache:', error)
+      return { reviews: {}, comparisons: {} }
+    }
+  },
+
+  async setWebReviewCache(cache) {
+    try {
+      const WEB_REVIEW_CACHE_FILE = path.join(DATA_DIR, 'web-review-cache.json')
+      await writeJSONFile(WEB_REVIEW_CACHE_FILE, cache)
+    } catch (error) {
+      console.error('Error setting web review cache:', error)
+      // Don't throw - caching failures shouldn't break the flow
+    }
+  },
 }
 
 export default dbClient

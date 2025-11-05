@@ -166,6 +166,65 @@ const turnOrchestratorService = {
         topChunks
       )
 
+      // Step 8.5: Fetch web reviews and comparisons (if enabled)
+      let webReviewSummary = null
+      let webComparisonSummary = null
+      
+      const useWebReviews = process.env.USE_WEB_REVIEWS === 'true'
+      if (useWebReviews) {
+        console.log(`[TurnOrchestrator] Step 8.5: Fetching web reviews...`)
+        
+        // Import web services (dynamic to avoid circular dependencies)
+        const webReviewService = (await import('./webReviewService.js')).default
+        const webComparisonService = (await import('./webComparisonService.js')).default
+        const webReviewCache = (await import('./webReviewCache.js')).default
+        
+        // Fetch web review for active SKU
+        if (activeSku && productRecord) {
+          try {
+            const fullProductRecord = await productRetrievalService.getProductRecord(activeSku)
+            if (fullProductRecord && fullProductRecord.brand && fullProductRecord.model) {
+              webReviewSummary = await webReviewCache.getOrFetchReview(
+                activeSku,
+                fullProductRecord,
+                (sku, metadata) => webReviewService.getReviewSummary(sku, metadata)
+              )
+              if (webReviewSummary) {
+                console.log(`[TurnOrchestrator] ✅ Web review fetched: ${webReviewSummary.top_pros?.length || 0} pros, ${webReviewSummary.top_cons?.length || 0} cons`)
+              }
+            }
+          } catch (error) {
+            console.warn(`[TurnOrchestrator] ⚠️ Web review fetch failed:`, error.message)
+            // Continue without web review - don't break the flow
+          }
+        }
+        
+        // Fetch comparison if compare intent
+        if (intent.need_compare && rewrittenQuery.compare_list && rewrittenQuery.compare_list.length >= 2) {
+          try {
+            const compareSkus = rewrittenQuery.compare_list.slice(0, 2) // Compare first two
+            const productLeft = await productRetrievalService.getProductRecord(compareSkus[0])
+            const productRight = await productRetrievalService.getProductRecord(compareSkus[1])
+            
+            if (productLeft?.brand && productLeft?.model && productRight?.brand && productRight?.model) {
+              webComparisonSummary = await webReviewCache.getOrFetchComparison(
+                compareSkus[0],
+                compareSkus[1],
+                productLeft,
+                productRight,
+                (skuL, skuR, prodL, prodR) => webComparisonService.getComparisonSummary(skuL, skuR, prodL, prodR)
+              )
+              if (webComparisonSummary) {
+                console.log(`[TurnOrchestrator] ✅ Web comparison fetched`)
+              }
+            }
+          } catch (error) {
+            console.warn(`[TurnOrchestrator] ⚠️ Web comparison fetch failed:`, error.message)
+            // Continue without comparison - don't break the flow
+          }
+        }
+      }
+
       // Step 9: Get availability and alternatives
       console.log(`[TurnOrchestrator] Step 9: Getting availability...`)
       let availability = null
@@ -236,6 +295,8 @@ const turnOrchestratorService = {
         compare_list: rewrittenQuery.compare_list,
         customer_intent: customerIntent,
         productRecords, // Pass all product records so names can be included with SKUs
+        web_review_summary: webReviewSummary, // Web review data
+        web_comparison_summary: webComparisonSummary, // Web comparison data
       })
 
       console.log(`[TurnOrchestrator] Generated answer:`)
