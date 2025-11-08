@@ -344,8 +344,36 @@ const turnOrchestratorService = {
               if (brand) {
                 productName = `${brand} ${category}`
               } else {
-                // Only use "Product <SKU>" as last resort
-                productName = `Product ${sku}`
+                // Try to extract from chunks one more time with broader search
+                if (skuChunks.length > 0) {
+                  for (const chunk of skuChunks) {
+                    const body = chunk.section_body || ''
+                    // Look for product name patterns
+                    const patterns = [
+                      /Product[:\s]+([^\n(]+?)(?:\s*\(|SKU|$)/i,
+                      /([A-Z][A-Za-z0-9\s&]+(?:SMARTPHONE|PHONE|LAPTOP|TV|TABLET|WATCH|SPEAKER|MONITOR))/i,
+                      /^([A-Z][A-Za-z0-9\s&]{10,60})/m,
+                    ]
+                    for (const pattern of patterns) {
+                      const match = body.match(pattern)
+                      if (match && match[1]) {
+                        productName = match[1].trim()
+                        if (productName.length > 5 && productName.length < 100 && !productName.match(/^(Features|Specifications|Key|Selling|Points|Category|Brand|SKU|Product Overview)/i)) {
+                          console.log(`[TurnOrchestrator] ✅ Extracted product name from chunk: "${productName}"`)
+                          break
+                        } else {
+                          productName = null
+                        }
+                      }
+                    }
+                    if (productName) break
+                  }
+                }
+                // Only use "Product <SKU>" as absolute last resort
+                if (!productName) {
+                  console.warn(`[TurnOrchestrator] ⚠️ Could not extract product name for SKU ${sku}, using fallback`)
+                  productName = `Product ${sku}`
+                }
               }
             }
             
@@ -470,9 +498,32 @@ const turnOrchestratorService = {
                 }
               }
             }
-            // Ensure we have at least something meaningful
+            // Ensure we have at least something meaningful - but avoid generic "Good value option"
             if (headlineFeatures.length === 0) {
-              headlineFeatures.push('Good value option')
+              // Try to extract ANY meaningful feature from chunks or product record
+              if (fullRecord?.selling_points && fullRecord.selling_points.length > 0) {
+                const firstSP = fullRecord.selling_points[0]
+                if (firstSP.length < 80) {
+                  headlineFeatures.push(firstSP)
+                } else {
+                  headlineFeatures.push(firstSP.substring(0, 77) + '...')
+                }
+              } else if (skuChunks.length > 0) {
+                // Extract first meaningful sentence from any chunk
+                for (const chunk of skuChunks.slice(0, 2)) {
+                  const body = chunk.section_body || ''
+                  const sentences = body.split(/[.!?]\s+/).filter(s => s.length > 15 && s.length < 100)
+                  if (sentences.length > 0) {
+                    headlineFeatures.push(sentences[0].trim())
+                    break
+                  }
+                }
+              }
+              // Only use "See details for features" as absolute last resort
+              if (headlineFeatures.length === 0) {
+                console.warn(`[TurnOrchestrator] ⚠️ No features found for SKU ${sku}, using generic fallback`)
+                headlineFeatures.push('See details for features')
+              }
             }
             
             // Extract real price information
