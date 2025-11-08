@@ -239,14 +239,18 @@ const turnOrchestratorService = {
             // Extract product name FIRST (prefer candidate_products from entityResolver, then full record, then chunks)
             let productName = null
             // Try from candidate_products first (they already have extracted names from productSearchService)
-            const candidateProduct = candidateProducts.find(p => p.sku === sku)
+            const candidateProduct = candidateProducts.find(p => String(p.sku).trim() === String(sku).trim())
             if (candidateProduct?.name) {
               // Use the product name from search results - it's already extracted
               productName = candidateProduct.name.trim()
+              console.log(`[TurnOrchestrator] ✅ Using product name from candidate_products: "${productName}" for SKU ${sku}`)
               // Only use if it's not a generic "Product <SKU>" name
               if (productName.match(/^Product\s+\d+$/i)) {
+                console.warn(`[TurnOrchestrator] ⚠️ Candidate product name is generic "${productName}", will try other sources`)
                 productName = null // Will fall back to other sources
               }
+            } else {
+              console.log(`[TurnOrchestrator] No candidate product found for SKU ${sku} (checked ${candidateProducts.length} candidates: ${candidateProducts.map(p => String(p.sku)).join(', ')})`)
             }
             
             // Extract brand (try multiple sources)
