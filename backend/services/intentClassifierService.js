@@ -160,9 +160,9 @@ Classify the intent and return JSON only.`
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ], {
-        maxTokens: 300, // Increased to ensure complete JSON responses
+        maxTokens: 400, // Increased to ensure complete JSON responses
         temperature: 0.1, // Low temperature for consistent classification
-        response_format: { type: 'json_object' }, // Force JSON response format
+        // Note: GPT-5 may not support response_format, so we'll parse manually
       })
 
       const answerText = response.choices[0]?.message?.content || ''
