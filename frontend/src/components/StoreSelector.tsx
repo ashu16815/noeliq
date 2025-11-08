@@ -14,7 +14,11 @@ interface Store {
   [key: string]: any
 }
 
-export default function StoreSelector() {
+interface StoreSelectorProps {
+  onStoreChange?: (storeName: string) => void
+}
+
+export default function StoreSelector({ onStoreChange }: StoreSelectorProps) {
   const [stores, setStores] = useState<Store[]>([])
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -49,19 +53,6 @@ export default function StoreSelector() {
     }
   }
 
-  const handleSelectStore = (storeId: string) => {
-    setSelectedStoreId(storeId)
-    localStorage.setItem('store_id', storeId)
-    setIsOpen(false)
-    
-    // Show success message briefly
-    const notification = document.createElement('div')
-    notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50'
-    notification.textContent = 'Store selected!'
-    document.body.appendChild(notification)
-    setTimeout(() => notification.remove(), 2000)
-  }
-
   const getStoreId = (store: Store) => {
     // Try various possible ID fields (stores from XML use @_storeCode)
     return store['@_storeCode'] ||
@@ -79,6 +70,25 @@ export default function StoreSelector() {
            store.id || 
            store.code || 
            'Unknown Store'
+  }
+
+  const handleSelectStore = (storeId: string) => {
+    setSelectedStoreId(storeId)
+    localStorage.setItem('store_id', storeId)
+    setIsOpen(false)
+    
+    // Notify parent component
+    const selectedStore = stores.find(s => getStoreId(s) === storeId)
+    if (selectedStore && onStoreChange) {
+      onStoreChange(getStoreDisplayName(selectedStore))
+    }
+    
+    // Show success message briefly
+    const notification = document.createElement('div')
+    notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50'
+    notification.textContent = 'Store selected!'
+    document.body.appendChild(notification)
+    setTimeout(() => notification.remove(), 2000)
   }
 
   const selectedStore = stores.find(s => getStoreId(s) === selectedStoreId)

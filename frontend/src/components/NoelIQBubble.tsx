@@ -1,7 +1,11 @@
 import { useState } from 'react'
-import { Package, MapPin, Sparkles, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { Package, MapPin, Sparkles, AlertCircle, Eye, EyeOff, MessageSquare } from 'lucide-react'
 import { AskResponse } from '../lib/apiClient'
 import { motion } from 'framer-motion'
+import ProductHeader from './ProductHeader'
+import CustomerVoicePanel from './CustomerVoicePanel'
+import ComparisonPanel from './ComparisonPanel'
+import Accordion from './Accordion'
 
 interface NoelIQBubbleProps {
   answer: AskResponse
@@ -31,14 +35,19 @@ export default function NoelIQBubble({ answer, customerView = false, onToggleVie
 
       {/* Message Card */}
       <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 p-5 max-w-3xl">
-        {/* Summary - Top Section */}
+        {/* 1. Product Header */}
+        {!showCustomerMode && answer.product_metadata && (
+          <ProductHeader metadata={answer.product_metadata} />
+        )}
+
+        {/* 2. Summary - Top Section */}
         <div className="mb-4">
           <p className="text-lg font-semibold text-noel-dark leading-relaxed">
             {answer.summary}
           </p>
         </div>
 
-        {/* Key Points */}
+        {/* 3. Key Points */}
         {answer.key_points && answer.key_points.length > 0 && (
           <div className="mb-4 space-y-2">
             {answer.key_points.map((point, idx) => (
@@ -48,6 +57,16 @@ export default function NoelIQBubble({ answer, customerView = false, onToggleVie
               </div>
             ))}
           </div>
+        )}
+
+        {/* 4. Customer Voice Panel */}
+        {!showCustomerMode && answer.customer_voice && (
+          <CustomerVoicePanel customerVoice={answer.customer_voice} />
+        )}
+
+        {/* 4b. Comparison Panel */}
+        {!showCustomerMode && answer.comparison_voice && answer.comparison_voice.enabled && (
+          <ComparisonPanel comparisonVoice={answer.comparison_voice} />
         )}
 
         {/* Attachments Block */}
@@ -183,6 +202,58 @@ export default function NoelIQBubble({ answer, customerView = false, onToggleVie
         {answer.sentiment_note && (
           <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-xs text-gray-700 italic">{answer.sentiment_note}</p>
+          </div>
+        )}
+
+        {/* 7. Progressive Disclosure - Specs, Warranty, Technical Notes */}
+        {!showCustomerMode && (
+          <div className="mb-4 space-y-2">
+            {answer.specs_fields && Object.keys(answer.specs_fields).length > 0 && (
+              <Accordion title="Specs & Details" defaultOpen={false}>
+                <div className="space-y-2">
+                  {Object.entries(answer.specs_fields).map(([key, value]) => (
+                    <div key={key} className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-sm font-medium text-gray-700">{key}:</span>
+                      <span className="text-sm text-gray-600">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </Accordion>
+            )}
+            
+            {answer.warranty_summary && (
+              <Accordion title="Warranty & Returns" defaultOpen={false}>
+                <p className="text-sm text-gray-700">{answer.warranty_summary}</p>
+              </Accordion>
+            )}
+            
+            {answer.technical_notes && answer.technical_notes.length > 0 && (
+              <Accordion title="Technical Notes" defaultOpen={false}>
+                <ul className="space-y-1">
+                  {answer.technical_notes.map((note, idx) => (
+                    <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                      <span className="text-gray-400 mt-1">•</span>
+                      <span>{note}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Accordion>
+            )}
+          </div>
+        )}
+
+        {/* 8. Sales Script (Staff only) */}
+        {!showCustomerMode && answer.sales_script && answer.sales_script.lines && answer.sales_script.lines.length > 0 && (
+          <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex items-center gap-2 mb-2">
+              <MessageSquare className="w-4 h-4 text-green-600" />
+              <p className="text-xs font-semibold text-gray-700">Sales script</p>
+            </div>
+            <div className="space-y-1">
+              {answer.sales_script.lines.map((line, idx) => (
+                <p key={idx} className="text-sm text-gray-700 italic">"{line}"</p>
+              ))}
+            </div>
           </div>
         )}
 

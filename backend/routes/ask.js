@@ -46,7 +46,7 @@ router.post('/', authenticate, async (req, res) => {
           sku: providedSku,
         })
 
-        // Return structured response
+        // Return structured response - include all fields from result
         res.json({
           conversation_id: result.conversation_id || conversationId,
           summary: result.summary || "Let me check that for you.",
@@ -66,6 +66,16 @@ router.post('/', authenticate, async (req, res) => {
           sentiment_note: result.sentiment_note || null,
           compliance_flags: result.compliance_flags || [],
           citations: result.citations || [],
+          // Include all new fields
+          product_metadata: result.product_metadata || null,
+          sales_script: result.sales_script || null,
+          customer_voice: result.customer_voice || null,
+          comparison_voice: result.comparison_voice || null,
+          shortlist_items: result.shortlist_items || [],
+          specs_fields: result.specs_fields || {},
+          warranty_summary: result.warranty_summary || null,
+          technical_notes: result.technical_notes || [],
+          coaching_tips: result.coaching_tips || [],
         })
         return
       } catch (orchestratorError) {

@@ -86,6 +86,54 @@ export interface Availability {
   fulfilment: string
 }
 
+export interface ProductMetadata {
+  name: string | null
+  image_url: string | null
+  price_band: string | null
+  sku: string | null
+  hero_features: string[]
+}
+
+export interface SalesScript {
+  lines: string[]
+}
+
+export interface CustomerVoice {
+  overall_sentiment: string | null
+  top_pros: string[]
+  top_cons: string[]
+  best_for: string[]
+  not_ideal_for: string[]
+  notable_issues: string[]
+}
+
+export interface ComparisonVoice {
+  enabled: boolean
+  headline_summary: string | null
+  areas_better_left: string[]
+  areas_better_right: string[]
+  tie_or_neutral_areas: string[]
+  recommendation_by_use_case: Array<{
+    use_case: string
+    better_choice: string
+    explanation: string
+  }>
+}
+
+export interface ShortlistItem {
+  sku: string
+  brand: string | null
+  product_name: string
+  model: string | null
+  headline_features: string[] // Keep for backward compatibility
+  price_band: string | null // Deprecated - use price_value instead
+  price_value: number | null
+  price_currency: string | null
+  price_compare: number | null
+  feature_headline: string | null
+  offer_badge: string | null
+}
+
 export interface AskResponse {
   conversation_id: string
   summary: string
@@ -96,6 +144,15 @@ export interface AskResponse {
   sentiment_note: string | null
   compliance_flags: string[]
   citations: string[]
+  product_metadata?: ProductMetadata | null
+  sales_script?: SalesScript
+  customer_voice?: CustomerVoice | null
+  comparison_voice?: ComparisonVoice
+  shortlist_items?: ShortlistItem[]
+  specs_fields?: Record<string, string>
+  warranty_summary?: string | null
+  technical_notes?: string[]
+  coaching_tips?: string[]
 }
 
 export const api = {

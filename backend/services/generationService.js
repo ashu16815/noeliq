@@ -86,6 +86,16 @@ You must return a structured JSON response with these exact fields:
   },
   "sentiment_note": "generic safe external sentiment / common feedback / who this is good for",
   "compliance_flags": ["string notes if you had to refuse something or avoid margin etc."],
+  "product_metadata": {
+    "name": "string | null",
+    "image_url": "string | null",
+    "price_band": "string | null (e.g. 'Under $1000', '$1000-$1500')",
+    "sku": "string | null",
+    "hero_features": ["string"]
+  },
+  "sales_script": {
+    "lines": ["string"]
+  },
   "customer_voice": {
     "overall_sentiment": "string | null (e.g. 'mostly positive', 'mixed')",
     "top_pros": ["string"],
@@ -107,7 +117,21 @@ You must return a structured JSON response with these exact fields:
         "explanation": "string"
       }
     ]
-  }
+  },
+  "shortlist_items": [
+    {
+      "sku": "string",
+      "name": "string",
+      "hero_feature": "string",
+      "price": "number | null",
+      "stock_indicator": "string | null"
+    }
+  ],
+  "specs_fields": {
+    "[key: string]": "string"
+  },
+  "warranty_summary": "string | null",
+  "technical_notes": ["string"]
 }
 
 If you can't fill a field, set it to null or an empty array. Do not hallucinate.
@@ -222,6 +246,9 @@ const generationService = {
     productRecords = {}, // Map of SKU -> {name, category, price} for all products in context
     web_review_summary = null, // Web review summary from webReviewService
     web_comparison_summary = null, // Web comparison summary from webComparisonService
+    shortlist_items = [], // Pre-built shortlist items for general recommendations
+    custom_user_prompt = null, // Custom user prompt (for coaching/general info flows)
+    custom_system_prompt = null, // Custom system prompt (optional override)
   }) {
     try {
       // Use context_summary if provided (from condenser), otherwise build from chunks
@@ -404,8 +431,12 @@ const generationService = {
         console.log(`[GenerationService]   Unique SKUs in context: ${uniqueSkus.join(', ')}`)
       }
       
-      // Build the prompt with structured output request - keep it concise
-      const userPrompt = `Question: ${question}
+      // Use custom prompt if provided (for coaching/general info flows), otherwise build standard prompt
+      let userPrompt
+      if (custom_user_prompt) {
+        userPrompt = custom_user_prompt
+      } else {
+        userPrompt = `Question: ${question}
 
 ${intentBlocks.length > 0 ? `${intentBlocks.join('\n\n')}\n\n` : ''}${activeContextBlocks.length > 0 ? `Active Context:\n${activeContextBlocks.join(', ')}\n\n` : ''}${compareBlocks.length > 0 ? `${compareBlocks.join('\n')}\n\n` : ''}Context:
 ${truncatedContext}
@@ -415,7 +446,11 @@ ${reviewBlocks.length > 0 ? `\n${reviewBlocks.join('\n\n')}\n` : ''}${webReviewB
 ${stockInfo.length > 0 ? `Stock availability:\n${stockInfo.join('\n')}` : ''}
 
 ${conversationContext.length > 0 ? `\nNote: Use the conversation history provided above to maintain context. If the user's question is a follow-up, assume it relates to the same product or topic discussed earlier unless they specify otherwise.` : ''}
-${isGeneralRecommendation ? `\nIMPORTANT: This is a general recommendation query with multiple product options. Present 3-5 different options in your key_points, ALWAYS including both the product name AND SKU for each option (e.g., "Option 1: [Product Name] (SKU 123456) - description"). Compare them briefly to help the customer choose.` : ''}
+${isGeneralRecommendation ? `\nIMPORTANT: This is a general recommendation query with multiple product options. 
+- Present 3-5 different options in your key_points, ALWAYS including both the product name AND SKU for each option (e.g., "Option 1: [Product Name] (SKU 123456) - description"). 
+- Compare them briefly to help the customer choose.
+- Populate the shortlist_items array with the top 3-5 products from the candidate options, including name, hero_feature (one key selling point), price, and stock_indicator if available.` : ''}
+${shortlist_items && shortlist_items.length > 0 ? `\nPre-built shortlist items available: ${JSON.stringify(shortlist_items.map(item => ({ sku: item.sku, name: item.name })))}. Use these in your shortlist_items response.` : ''}
 ${Object.keys(productRecords).length > 0 ? `\nWhen mentioning any SKU in your response, ALWAYS include the corresponding product name from the Product information provided above. Format: "[Product Name] (SKU [number])"` : ''}
 ${compare_list.length > 0 ? `\nIf comparing products, highlight key differences and similarities between the SKUs listed.` : ''}
 
@@ -438,7 +473,15 @@ Required JSON structure:
     "key_diff": ${alternative?.key_diff ? `"${alternative.key_diff}"` : 'null'}
   },
   "sentiment_note": "generic safe external sentiment / common feedback / who this is good for",
-  "compliance_flags": []
+  "compliance_flags": [],
+  "product_metadata": {"name": "string | null", "image_url": "string | null", "price_band": "string | null", "sku": "string | null", "hero_features": ["string"]},
+  "sales_script": {"lines": ["string"]},
+  "customer_voice": {"overall_sentiment": "string | null", "top_pros": ["string"], "top_cons": ["string"], "best_for": ["string"], "not_ideal_for": ["string"], "notable_issues": ["string"]},
+  "comparison_voice": {"enabled": "boolean", "headline_summary": "string | null", "areas_better_left": ["string"], "areas_better_right": ["string"], "tie_or_neutral_areas": ["string"], "recommendation_by_use_case": [{"use_case": "string", "better_choice": "string", "explanation": "string"}]},
+  "shortlist_items": [{"sku": "string", "brand": "string", "product_name": "string", "model": "string | null", "headline_features": ["string (2-3 key features)"], "price_band": "string | null (e.g. 'Under $1,000')"}],
+  "specs_fields": {"[key: string]": "string"},
+  "warranty_summary": "string | null",
+  "technical_notes": ["string"]
 }
 
 IMPORTANT: 
@@ -446,6 +489,10 @@ IMPORTANT:
 - Make the summary friendly and conversational (1-2 sentences)
 - Use the context provided to answer the question accurately
 - If you don't have enough info, still return JSON with summary explaining what you found`
+      }
+      
+      // Load system prompt (use custom if provided)
+      const systemPrompt = custom_system_prompt || loadSystemPrompt()
 
       // Build messages array
       const messages = [
@@ -456,8 +503,11 @@ IMPORTANT:
 
       // Call Azure OpenAI
       // With increased token limits, we can request larger responses
+      // For deep dive queries, we need more tokens for detailed responses
+      const isDeepDive = custom_system_prompt && custom_system_prompt.includes('deep-dive')
+      const maxTokens = isDeepDive ? 4000 : 3000 // More tokens for deep dive responses
       const response = await chatClient.getChatCompletions(messages, {
-        maxTokens: 2000, // Increased for better JSON responses
+        maxTokens: maxTokens,
       })
 
       const answerText = response.choices[0]?.message?.content || ""
@@ -478,6 +528,7 @@ IMPORTANT:
           productRecord,
           availability,
           alternative,
+          shortlist_items,
         })
       }
       
@@ -506,13 +557,61 @@ IMPORTANT:
           productRecord,
           availability,
           alternative,
+          shortlist_items,
         })
       }
 
-      return {
+      // Extract active SKU from productRecord or conversation_state
+      const activeSku = productRecord?.sku || conversation_state?.active_sku || (productRecord && Object.keys(productRecords).length === 1 ? Object.keys(productRecords)[0] : null)
+      
+      // Ensure all new fields have defaults if not present
+      const enrichedAnswer = {
         ...structuredAnswer,
+        product_metadata: structuredAnswer.product_metadata || (productRecord && activeSku ? {
+          name: productRecord.name || productRecords[activeSku]?.name || null,
+          image_url: null,
+          price_band: productRecord.list_price ? `$${productRecord.list_price}` : (productRecord.pricing?.listPrice ? `$${productRecord.pricing.listPrice}` : (productRecords[activeSku]?.price ? `$${productRecords[activeSku].price}` : null)),
+          sku: activeSku,
+          hero_features: []
+        } : null),
+        sales_script: structuredAnswer.sales_script || { lines: [] },
+        coaching_tips: structuredAnswer.coaching_tips || [],
+        customer_voice: structuredAnswer.customer_voice || (web_review_summary ? {
+          overall_sentiment: web_review_summary.overall_sentiment || null,
+          top_pros: web_review_summary.top_pros || [],
+          top_cons: web_review_summary.top_cons || [],
+          best_for: web_review_summary.best_for || [],
+          not_ideal_for: web_review_summary.not_ideal_for || [],
+          notable_issues: web_review_summary.notable_issues || []
+        } : null),
+        comparison_voice: structuredAnswer.comparison_voice || (web_comparison_summary ? {
+          enabled: true,
+          headline_summary: web_comparison_summary.headline_summary || null,
+          areas_better_left: web_comparison_summary.areas_better_for_left || [],
+          areas_better_right: web_comparison_summary.areas_better_for_right || [],
+          tie_or_neutral_areas: [],
+          recommendation_by_use_case: web_comparison_summary.recommendation_by_use_case || []
+        } : {
+          enabled: false,
+          headline_summary: null,
+          areas_better_left: [],
+          areas_better_right: [],
+          tie_or_neutral_areas: [],
+          recommendation_by_use_case: []
+        }),
+        // Use pre-built shortlist_items if available (from turnOrchestrator), otherwise use LLM's response
+        // Pre-built items take priority because they're based on actual candidate SKUs
+        shortlist_items: (shortlist_items && shortlist_items.length > 0)
+          ? shortlist_items
+          : (structuredAnswer.shortlist_items && structuredAnswer.shortlist_items.length > 0 ? structuredAnswer.shortlist_items : []),
+        specs_fields: structuredAnswer.specs_fields || {},
+        warranty_summary: structuredAnswer.warranty_summary || null,
+        technical_notes: structuredAnswer.technical_notes || [],
+        coaching_tips: structuredAnswer.coaching_tips || [],
         citations: relevantChunks.map((c) => c.chunk_id),
       }
+      
+      return enrichedAnswer
     } catch (error) {
       console.error('Error in generationService:', error)
       throw new Error(`Failed to generate answer: ${error.message}`)
@@ -537,38 +636,102 @@ IMPORTANT:
     return sellPoints.slice(0, 5) // Limit to top 5
   },
 
-  generateFromContext({ question, relevantChunks, productRecord, availability, alternative }) {
+  generateFromContext({ question, relevantChunks, productRecord, availability, alternative, shortlist_items = [] }) {
     // Generate a helpful answer even if LLM fails
     const contextText = relevantChunks
       .map((chunk) => chunk.section_body)
       .join('\n\n')
-      .substring(0, 500)
+      .substring(0, 2000) // Increased context window for better extraction
 
-    // Extract key info from chunks
+    // Extract key info from chunks more intelligently
     const keyPoints = []
-    if (contextText.includes('Gaming')) {
-      keyPoints.push('Great for gaming with high refresh rates')
+    
+    // Extract product name and basic info
+    const productName = productRecord?.name || question.match(/SKU\s*(\d+)/i)?.[1] ? `Product SKU ${question.match(/SKU\s*(\d+)/i)?.[1]}` : 'this product'
+    
+    // Extract features from chunks - look for common patterns
+    const featurePatterns = [
+      { pattern: /(\d+\.\d+["']?\s*(?:inch|"|inches)?\s*(?:HD|Full HD|4K|8K|OLED|QLED|display|screen))/i, prefix: 'Display: ' },
+      { pattern: /(\d+GB?\s*(?:RAM|memory|storage|SSD|HDD))/i, prefix: 'Memory/Storage: ' },
+      { pattern: /(\d+mAh\s*battery)/i, prefix: 'Battery: ' },
+      { pattern: /(\d+MP\s*camera)/i, prefix: 'Camera: ' },
+      { pattern: /(octa-core|quad-core|dual-core)/i, prefix: 'Processor: ' },
+      { pattern: /(warranty|guarantee)/i, prefix: 'Warranty: ' },
+    ]
+    
+    for (const { pattern, prefix } of featurePatterns) {
+      const match = contextText.match(pattern)
+      if (match && !keyPoints.some(kp => kp.includes(match[1]))) {
+        keyPoints.push(prefix + match[1])
+      }
     }
-    if (contextText.includes('120Hz') || contextText.includes('120 Hz')) {
-      keyPoints.push('120Hz refresh rate for smooth gameplay')
+    
+    // Extract selling points from section titles
+    const sectionTitles = relevantChunks
+      .map(c => c.section_title)
+      .filter(Boolean)
+      .filter((title, idx, arr) => arr.indexOf(title) === idx) // Unique
+    
+    for (const title of sectionTitles.slice(0, 3)) {
+      if (title && !title.includes('Product Overview') && !keyPoints.some(kp => kp.toLowerCase().includes(title.toLowerCase()))) {
+        // Extract a sentence from chunks with this section title
+        const sectionChunk = relevantChunks.find(c => c.section_title === title)
+        if (sectionChunk?.section_body) {
+          const firstSentence = sectionChunk.section_body.split(/[.!?]/)[0].trim()
+          if (firstSentence && firstSentence.length > 20 && firstSentence.length < 150) {
+            keyPoints.push(firstSentence)
+          }
+        }
+      }
     }
-    if (contextText.includes('HDMI 2.1')) {
-      keyPoints.push('HDMI 2.1 support for next-gen consoles')
+    
+    // Fallback: extract any meaningful sentences from chunks
+    if (keyPoints.length < 3) {
+      const sentences = contextText.split(/[.!?]\s+/).filter(s => s.length > 30 && s.length < 200)
+      for (const sentence of sentences.slice(0, 3 - keyPoints.length)) {
+        if (!keyPoints.some(kp => kp.includes(sentence.substring(0, 20)))) {
+          keyPoints.push(sentence.trim())
+        }
+      }
     }
-
-    // Build summary from question intent
-    let summary = "Based on our product catalogue, "
-    if (question.toLowerCase().includes('gaming')) {
-      summary += "I found some great gaming options for you."
-    } else if (question.toLowerCase().includes('cheaper') || question.toLowerCase().includes('under')) {
-      summary += "here are some more affordable options."
+    
+    // Build summary from question intent and product info
+    let summary = ""
+    if (productRecord?.name) {
+      summary = `The ${productRecord.name}`
+      if (productRecord.list_price || productRecord.pricing?.listPrice) {
+        const price = productRecord.list_price || productRecord.pricing.listPrice
+        summary += ` ($${price})`
+      }
+      summary += " is"
+      if (question.toLowerCase().includes('gaming')) {
+        summary += " a solid option for gaming"
+      } else if (question.toLowerCase().includes('work') || question.toLowerCase().includes('wfh')) {
+        summary += " well-suited for work from home"
+      } else {
+        summary += " a good choice"
+      }
+      summary += "."
+    } else if (question.toLowerCase().includes('sku')) {
+      summary = `This product is available and ready to help your customer.`
     } else {
-      summary += "I have some options that match what you're looking for."
+      summary = "Based on our product catalogue, "
+      if (question.toLowerCase().includes('gaming')) {
+        summary += "I found some great gaming options for you."
+      } else if (question.toLowerCase().includes('cheaper') || question.toLowerCase().includes('under')) {
+        summary += "here are some more affordable options."
+      } else {
+        summary += "I have some options that match what you're looking for."
+      }
     }
 
     return {
       summary,
-      key_points: keyPoints.length > 0 ? keyPoints : ['Check our catalogue for detailed specs'],
+      key_points: keyPoints.length > 0 ? keyPoints : (productRecord ? [
+        productRecord.name ? `${productRecord.name} is available.` : 'Product is available.',
+        availability?.this_store_qty ? `${availability.this_store_qty} available in this store.` : 'Check availability in store.',
+        'See product details above for specifications.'
+      ] : ['Check our catalogue for detailed specs']),
       attachments: (productRecord?.recommended_attachments || []).map(att => ({
         sku: att.sku || null,
         name: att.name,
@@ -587,10 +750,27 @@ IMPORTANT:
       },
       sentiment_note: null,
       compliance_flags: [],
+      shortlist_items: shortlist_items || [],
+      product_metadata: null,
+      sales_script: { lines: [] },
+      coaching_tips: [],
+      customer_voice: null,
+      comparison_voice: {
+        enabled: false,
+        headline_summary: null,
+        areas_better_left: [],
+        areas_better_right: [],
+        tie_or_neutral_areas: [],
+        recommendation_by_use_case: []
+      },
+      shortlist_items: shortlist_items || [],
+      specs_fields: {},
+      warranty_summary: null,
+      technical_notes: [],
     }
   },
 
-  parseTextResponse(answerText, { productRecord, availability, alternative }) {
+  parseTextResponse(answerText, { productRecord, availability, alternative, shortlist_items = [] }) {
     // Try to extract structured info from plain text response
     const summary = answerText.split('\n')[0] || "Let me check that for you."
     
@@ -614,11 +794,11 @@ IMPORTANT:
       summary: summary.length > 200 ? summary.substring(0, 200) : summary,
       key_points: keyPoints,
       attachments,
-          stock_and_fulfilment: {
-            this_store_qty: availability?.this_store_qty ?? null,
-            nearby: availability?.nearby || [],
-            fulfilment_summary: availability?.fulfilment || (availability ? 'Store selected - ask about a specific product for availability' : 'Select a store to check availability'),
-          },
+      stock_and_fulfilment: {
+        this_store_qty: availability?.this_store_qty ?? null,
+        nearby: availability?.nearby || [],
+        fulfilment_summary: availability?.fulfilment || (availability ? 'Store selected - ask about a specific product for availability' : 'Select a store to check availability'),
+      },
       alternative_if_oos: alternative || {
         alt_sku: null,
         alt_name: null,
@@ -627,6 +807,21 @@ IMPORTANT:
       },
       sentiment_note: null,
       compliance_flags: [],
+      product_metadata: null,
+      sales_script: { lines: [] },
+      customer_voice: null,
+      comparison_voice: {
+        enabled: false,
+        headline_summary: null,
+        areas_better_left: [],
+        areas_better_right: [],
+        tie_or_neutral_areas: [],
+        recommendation_by_use_case: []
+      },
+      shortlist_items: shortlist_items || [],
+      specs_fields: {},
+      warranty_summary: null,
+      technical_notes: [],
     }
   },
 }

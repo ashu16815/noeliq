@@ -244,9 +244,17 @@ const dbClient = {
 
   // Get parsed product
   async getParsedProduct(sku) {
+    // Normalize SKU to string for consistent lookup
+    const normalizedSku = String(sku).trim()
     try {
       const parsedProducts = await readJSONFile(PARSED_PRODUCTS_FILE, {})
-      return parsedProducts[sku] || null
+      // Try exact match first, then try string comparison
+      const product = parsedProducts[normalizedSku] || Object.values(parsedProducts).find((p) => {
+        if (!p || typeof p !== 'object') return false
+        const productSku = String(p.sku || '').trim()
+        return productSku === normalizedSku
+      })
+      return product || null
     } catch (error) {
       console.error('Error getting parsed product:', error)
       return null

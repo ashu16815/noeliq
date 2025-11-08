@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import ChatScreen from './pages/ChatScreen'
 import AdminDashboardView from './pages/AdminDashboardView'
 import PasscodeScreen from './components/PasscodeScreen'
+import ErrorBoundary from './components/ErrorBoundary'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
@@ -58,19 +59,21 @@ function App() {
 
   // Show app if authenticated
   return (
-    <Router
-      future={{
-        v7_startTransition: true,
-        v7_relativeSplatPath: true,
-      }}
-    >
-      <Routes>
-        <Route path="/" element={<Navigate to="/chat" replace />} />
-        <Route path="/chat" element={<ChatScreen />} />
-        <Route path="/sales" element={<ChatScreen />} /> {/* Legacy route */}
-        <Route path="/admin" element={<AdminDashboardView />} />
-      </Routes>
-    </Router>
+    <ErrorBoundary>
+      <Router
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
+        <Routes>
+          <Route path="/" element={<Navigate to="/chat" replace />} />
+          <Route path="/chat" element={<ChatScreen />} />
+          <Route path="/sales" element={<ChatScreen />} /> {/* Legacy route */}
+          <Route path="/admin" element={<AdminDashboardView />} />
+        </Routes>
+      </Router>
+    </ErrorBoundary>
   )
 }
 

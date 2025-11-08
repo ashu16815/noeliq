@@ -8,7 +8,7 @@ import { chatClient } from '../lib/azureOpenAIClient.js'
 const CONFIG = {
   azure_search_top: 30,           // Retrieve more initially for reranking
   rerank_max_chunks: 10,           // Final chunks to send to LLM
-  chunk_score_threshold: 0.55,     // Minimum relevance score
+  chunk_score_threshold: 0.3,     // Minimum relevance score (lowered for deep dive queries)
   max_context_tokens: 5000,        // Max tokens before summarization
   embedding_model: 'text-embedding-3-large',
   summarizer_model: 'gpt-4o-mini', // For context compression
@@ -55,16 +55,57 @@ const ragRetrievalOptimizedService = {
         console.log(`[RAG] General query - retrieved ${allResults.length} chunks from ${uniqueSkus.length} unique SKUs: ${uniqueSkus.join(', ')}`)
       } else {
         // Normal single-SKU retrieval
-        allResults = await this.hybridSearch(enhancedQuestion, questionEmbedding, sku, filters)
+        // For single-SKU queries, try filter-only search first (more reliable than vector+filter)
+        if (sku) {
+          console.log(`[RAG] Single-SKU query for ${sku} - trying filter-only search first`)
+          try {
+            const filterOnlyResults = await this.filterOnlySearch(sku, limit)
+            if (filterOnlyResults.length > 0) {
+              console.log(`[RAG] ✅ Filter-only search found ${filterOnlyResults.length} chunks for SKU ${sku}`)
+              allResults = filterOnlyResults
+            } else {
+              console.log(`[RAG] Filter-only search returned 0 results, falling back to hybrid search`)
+              allResults = await this.hybridSearch(enhancedQuestion, questionEmbedding, sku, filters)
+            }
+          } catch (error) {
+            console.warn(`[RAG] Filter-only search failed, using hybrid:`, error.message)
+            allResults = await this.hybridSearch(enhancedQuestion, questionEmbedding, sku, filters)
+          }
+        } else {
+          allResults = await this.hybridSearch(enhancedQuestion, questionEmbedding, sku, filters)
+        }
       }
 
       // Step 4: Filter by score threshold
-      const filteredResults = this.filterByScore(allResults, CONFIG.chunk_score_threshold)
+      // For single-SKU queries (deep dive), use a lower threshold to ensure we get results
+      // If we used filter-only search, all results have score 1.0, so skip filtering
+      const scoreThreshold = sku && !compare_list ? Math.min(CONFIG.chunk_score_threshold, 0.3) : CONFIG.chunk_score_threshold
+      let filteredResults = allResults
+      
+      // Only filter by score if we didn't use filter-only search (which gives all results score 1.0)
+      if (allResults.length > 0 && allResults[0].search_score !== 1.0) {
+        filteredResults = this.filterByScore(allResults, scoreThreshold)
+        console.log(`[RAG] After score filtering (threshold: ${scoreThreshold}): ${filteredResults.length} chunks from ${allResults.length} initial results`)
+        
+        // For single-SKU deep dive queries, if filtering removed all results, take top results anyway
+        if (sku && !compare_list && filteredResults.length === 0 && allResults.length > 0) {
+          console.log(`[RAG] ⚠️ Score filtering removed all results for SKU ${sku}, using top ${Math.min(limit, allResults.length)} results anyway`)
+          filteredResults = allResults.slice(0, Math.min(limit, allResults.length))
+        }
+      } else {
+        console.log(`[RAG] Skipping score filter (filter-only search results have score 1.0)`)
+      }
 
       // Step 5: Rerank, deduplicate, and diversify (ensures diversity across SKUs for comparison)
       const rerankedChunks = this.rerankAndDiversify(filteredResults, CONFIG.rerank_max_chunks || limit, compare_list)
       const rerankedUniqueSkus = [...new Set(rerankedChunks.map(c => c.sku).filter(Boolean))]
       console.log(`[RAG] After reranking: ${rerankedChunks.length} chunks from ${rerankedUniqueSkus.length} unique SKUs: ${rerankedUniqueSkus.join(', ')}`)
+      
+      // For single-SKU deep dive queries, ensure we return at least one chunk if we had results
+      if (sku && !compare_list && rerankedChunks.length === 0 && filteredResults.length > 0) {
+        console.log(`[RAG] ⚠️ Reranking removed all chunks for SKU ${sku}, using top filtered result anyway`)
+        return filteredResults.slice(0, Math.min(limit, filteredResults.length))
+      }
 
       // Step 6: Optionally summarize if context is too large
       const finalChunks = await this.condenseContextIfNeeded(rerankedChunks, CONFIG.max_context_tokens)
@@ -106,7 +147,9 @@ const ragRetrievalOptimizedService = {
     const filterParts = []
     
     if (sku) {
-      filterParts.push(`sku eq '${sku}'`)
+      // Normalize SKU to string and ensure it's properly quoted
+      const normalizedSku = String(sku).trim()
+      filterParts.push(`sku eq '${normalizedSku}'`)
     }
     
     // Add metadata filters if provided (only for fields that exist in index schema)
@@ -162,6 +205,35 @@ const ragRetrievalOptimizedService = {
       section_type: result.section_type || result.section_title,
       importance_score: result.importance_score || 0.5,
       search_score: result['@search.score'] || 0,
+      chunk_id: result.chunk_id,
+    }))
+  },
+
+  /**
+   * Filter-only search for single SKU (no vector search, just filter)
+   * This is more reliable for deep dive queries where we know the exact SKU
+   */
+  async filterOnlySearch(sku, limit = 20) {
+    const normalizedSku = String(sku).trim()
+    const filterString = `sku eq '${normalizedSku}'`
+    
+    console.log(`[RAG] Filter-only search: filter="${filterString}", limit=${limit}`)
+    
+    const results = await searchClient.search('*', {
+      filter: filterString,
+      top: limit,
+      select: ['sku', 'section_title', 'section_body', 'chunk_id'], // Only select fields that exist in index
+    })
+    
+    console.log(`[RAG] Filter-only search returned ${results.length} documents`)
+    
+    return results.map((result) => ({
+      sku: result.sku,
+      section_title: result.section_title,
+      section_body: result.section_body,
+      section_type: result.section_title, // Use section_title as section_type
+      importance_score: 0.5, // Default importance score
+      search_score: 1.0, // Give filter-only results a high score since they're exact matches
       chunk_id: result.chunk_id,
     }))
   },

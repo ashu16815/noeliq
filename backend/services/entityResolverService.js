@@ -15,6 +15,7 @@ const entityResolverService = {
       const resolved = {
         active_sku: null,
         candidate_skus: [],
+        candidate_products: [], // Store full product info for shortlist building
         category: null,
         brand: null,
         budget: null,
@@ -29,9 +30,15 @@ const entityResolverService = {
 
       // Extract category hints
       const categoryHints = this.extractCategory(userText)
+      if (categoryHints) {
+        resolved.category = categoryHints
+      }
 
       // Extract brand hints
       const brandHints = this.extractBrand(userText)
+      if (brandHints) {
+        resolved.brand = brandHints
+      }
 
       // If user provided SKU explicitly (e.g., from barcode scan), use it
       const explicitSku = this.extractExplicitSku(userText)
@@ -94,7 +101,9 @@ const entityResolverService = {
         if (products.length > 0) {
           console.log(`[EntityResolver] Found SKUs: ${products.map(p => `${p.sku} (${p.name || 'unnamed'})`).join(', ')}`)
           resolved.candidate_skus = products.map(p => p.sku).slice(0, 5)
+          resolved.candidate_products = products.slice(0, 5) // Store full product info for shortlist
           console.log(`[EntityResolver] Set ${resolved.candidate_skus.length} candidate_skus: ${resolved.candidate_skus.join(', ')}`)
+          console.log(`[EntityResolver] Stored ${resolved.candidate_products.length} candidate products with names`)
           // Don't set active_sku for general recommendations
         } else {
           console.warn(`[EntityResolver] ⚠️ Category+budget search returned 0 results for: "${searchQuery}"`)
@@ -318,11 +327,12 @@ const entityResolverService = {
     const text = userText.toLowerCase()
     
     // General recommendation patterns - expanded to catch more variations
+    // Note: "mobile" is treated as "phone"
     const generalPatterns = [
-      /^(find|show|give|recommend|suggest|what|which|list|i need|i want|looking for|search for).*(laptop|phone|tv|tablet|watch|camera|headphone)/i,
-      /(laptop|phone|tv|tablet|watch|camera|headphone).*(below|under|less than|around|about|max|budget|for|within)/i,
-      /(below|under|less than|around|about|max|budget|within).*\d+.*(laptop|phone|tv|tablet|watch|camera|headphone)/i,
-      /(laptop|phone|tv|tablet|watch|camera|headphone).*\$?\d+/i, // Category with price
+      /^(find|show|give|recommend|suggest|what|which|list|i need|i want|looking for|search for).*(laptop|phone|mobile|tv|tablet|watch|camera|headphone)/i,
+      /(laptop|phone|mobile|tv|tablet|watch|camera|headphone).*(below|under|less than|around|about|max|budget|for|within)/i,
+      /(below|under|less than|around|about|max|budget|within).*\d+.*(laptop|phone|mobile|tv|tablet|watch|camera|headphone)/i,
+      /(laptop|phone|mobile|tv|tablet|watch|camera|headphone).*\$?\d+/i, // Category with price
       /\$?\d+.*(laptop|phone|tv|tablet|watch|camera|headphone)/i, // Price with category
       /(i need|i want|looking for|search for).*(laptop|phone|tv|tablet|watch|camera|headphone).*(under|below|within|for)/i,
     ]
@@ -340,7 +350,7 @@ const entityResolverService = {
     // Also check if there's a budget constraint but no specific product mentioned
     // This catches "laptop under 1000" or "I need laptop under 1000 dollar"
     const hasBudget = /(below|under|less than|around|about|max|budget|within|for).*\d+/i.test(text)
-    const hasCategory = /(laptop|phone|tv|tablet|watch|camera|headphone)/i.test(text)
+    const hasCategory = /(laptop|phone|mobile|tv|tablet|watch|camera|headphone)/i.test(text)
     const noSpecificProduct = !conversationState.active_sku
     
     // Strong indicator: category + budget + no active SKU = general recommendation
