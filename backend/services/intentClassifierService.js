@@ -166,14 +166,31 @@ Classify the intent and return JSON only.`
       })
 
       const answerText = response.choices[0]?.message?.content || ''
+      const finishReason = response.choices[0]?.finish_reason || 'unknown'
+      
+      console.log(`[IntentClassifier] LLM response length: ${answerText.length} chars, finish_reason: ${finishReason}`)
+      
+      // If response is empty or truncated, fall back to pattern-based
+      if (!answerText || answerText.trim().length < 10) {
+        console.warn(`[IntentClassifier] Empty or truncated LLM response, using pattern-based fallback`)
+        throw new Error('Empty LLM response')
+      }
       
       // Extract JSON from response
       let jsonText = answerText.trim()
+      
+      // Remove markdown code blocks if present
       if (jsonText.startsWith('```')) {
         jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
       }
 
-      // Try to fix incomplete JSON (common LLM issue)
+      // Extract JSON object if response contains text before/after JSON
+      const jsonMatch = jsonText.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        jsonText = jsonMatch[0]
+      }
+
+      // Try to fix incomplete JSON (common LLM issue, especially with truncation)
       if (jsonText && !jsonText.endsWith('}')) {
         // Try to find the last complete JSON object
         const lastBrace = jsonText.lastIndexOf('}')
@@ -193,18 +210,20 @@ Classify the intent and return JSON only.`
         }
       }
 
-      // Extract JSON object if response contains text before/after JSON
-      const jsonMatch = jsonText.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        jsonText = jsonMatch[0]
-      }
-
       // Safety check: ensure we have valid JSON to parse
       if (!jsonText || !jsonText.includes('{')) {
+        console.warn(`[IntentClassifier] No valid JSON found in response. Raw text: ${answerText.substring(0, 200)}`)
         throw new Error('No valid JSON found in LLM response')
       }
 
-      const result = JSON.parse(jsonText)
+      let result
+      try {
+        result = JSON.parse(jsonText)
+      } catch (parseError) {
+        console.warn(`[IntentClassifier] JSON parse error: ${parseError.message}`)
+        console.warn(`[IntentClassifier] JSON text (first 300 chars): ${jsonText.substring(0, 300)}`)
+        throw new Error(`JSON parse error: ${parseError.message}`)
+      }
       
       // Validate result structure
       return {
