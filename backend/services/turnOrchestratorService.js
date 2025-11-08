@@ -574,7 +574,10 @@ const turnOrchestratorService = {
         }
         console.log(`[TurnOrchestrator] ✅ Built ${shortlistItems.length} shortlist items for general recommendation`)
         if (shortlistItems.length > 0) {
-          console.log(`[TurnOrchestrator] Shortlist items: ${shortlistItems.map(item => `${item.name} (${item.sku})`).join(', ')}`)
+          console.log(`[TurnOrchestrator] Shortlist items: ${shortlistItems.map(item => `${item.product_name || item.name || 'Unknown'} (${item.sku})`).join(', ')}`)
+          // Log first item details for debugging
+          const firstItem = shortlistItems[0]
+          console.log(`[TurnOrchestrator] Sample item: sku=${firstItem.sku}, brand=${firstItem.brand || 'null'}, product_name=${firstItem.product_name || 'null'}, price=${firstItem.price_value || 'null'}, features=${firstItem.headline_features?.length || 0}`)
         } else {
           console.warn(`[TurnOrchestrator] ⚠️ No shortlist items built - chunks: ${topChunks.length}, candidate SKUs: ${resolvedEntities.candidate_skus?.length || 0}`)
           // Even if we can't get full details, create basic shortlist items from candidate SKUs
