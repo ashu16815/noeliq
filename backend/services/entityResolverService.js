@@ -77,7 +77,9 @@ const entityResolverService = {
             // For general queries (e.g., "laptop below 1000"), don't set active_sku
             // Instead, populate candidate_skus for comparison
             resolved.candidate_skus = products.map(p => p.sku).slice(0, 5) // Get top 5 options
+            resolved.candidate_products = products.slice(0, 5) // Store full product info for shortlist
             console.log(`[EntityResolver] General recommendation - set ${resolved.candidate_skus.length} candidate_skus: ${resolved.candidate_skus.join(', ')}`)
+            console.log(`[EntityResolver] Stored ${resolved.candidate_products.length} candidate products with names`)
             // Don't set active_sku - let retrieval find multiple options
           } else {
             // For specific product queries, set active_sku
