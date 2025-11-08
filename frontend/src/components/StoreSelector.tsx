@@ -29,6 +29,14 @@ export default function StoreSelector({ onStoreChange }: StoreSelectorProps) {
     const savedStoreId = localStorage.getItem('store_id')
     if (savedStoreId) {
       setSelectedStoreId(savedStoreId)
+    } else {
+      // If no store is selected, set default to "Sylvia Park"
+      // We'll try to match it when stores load
+      const defaultStore = 'Sylvia Park'
+      localStorage.setItem('store_id', defaultStore)
+      localStorage.setItem('store_name', defaultStore)
+      setSelectedStoreId(defaultStore)
+      console.log('[StoreSelector] Set default store to Sylvia Park')
     }
 
     // Fetch stores
@@ -39,11 +47,38 @@ export default function StoreSelector({ onStoreChange }: StoreSelectorProps) {
     try {
       setIsLoading(true)
       const storesData = await api.getStores()
-      setStores(Array.isArray(storesData) ? storesData : [])
+      const loadedStores = Array.isArray(storesData) ? storesData : []
+      setStores(loadedStores)
+      
+      // After loading stores, try to match "Sylvia Park" if it's set as default
+      const savedStoreId = localStorage.getItem('store_id')
+      if (savedStoreId === 'Sylvia Park' && loadedStores.length > 0) {
+        // Try to find Sylvia Park store by name (case-insensitive)
+        const sylviaParkStore = loadedStores.find(store => {
+          const storeName = getStoreDisplayName(store).toLowerCase()
+          return storeName.includes('sylvia park') || storeName.includes('sylvia')
+        })
+        
+        if (sylviaParkStore) {
+          const actualStoreId = getStoreId(sylviaParkStore)
+          setSelectedStoreId(actualStoreId)
+          localStorage.setItem('store_id', actualStoreId)
+          localStorage.setItem('store_name', getStoreDisplayName(sylviaParkStore))
+          console.log('[StoreSelector] Matched Sylvia Park store:', actualStoreId)
+          
+          // Notify parent if callback exists
+          if (onStoreChange) {
+            onStoreChange(getStoreDisplayName(sylviaParkStore))
+          }
+        } else {
+          console.log('[StoreSelector] Sylvia Park not found in stores, keeping default name')
+        }
+      }
     } catch (error) {
       console.error('Error loading stores:', error)
-      // If API fails, use fallback stores
+      // If API fails, use fallback stores (include Sylvia Park)
       setStores([
+        { id: 'Sylvia Park', name: 'Sylvia Park', city: 'Auckland' },
         { id: 'store_001', name: 'Noel Leeming Auckland Central', city: 'Auckland' },
         { id: 'store_002', name: 'Noel Leeming Newmarket', city: 'Auckland' },
         { id: 'store_003', name: 'Noel Leeming Wellington', city: 'Wellington' },

@@ -23,6 +23,17 @@ const PasscodeScreen = ({ onSuccess }: PasscodeScreenProps) => {
       // Store authentication in localStorage
       localStorage.setItem('noeliq_authenticated', 'true')
       localStorage.setItem('noeliq_auth_timestamp', Date.now().toString())
+      
+      // Set default store to "Sylvia Park" if no store is already selected
+      const existingStoreId = localStorage.getItem('store_id')
+      if (!existingStoreId) {
+        // Try to find Sylvia Park in available stores, or set it as default
+        // We'll set it by name first, and StoreSelector will match it when stores load
+        localStorage.setItem('store_id', 'Sylvia Park')
+        localStorage.setItem('store_name', 'Sylvia Park')
+        console.log('[PasscodeScreen] Set default store to Sylvia Park')
+      }
+      
       onSuccess()
     } else {
       setError('Incorrect passcode. Please try again.')
