@@ -450,7 +450,7 @@ ${isGeneralRecommendation ? `\nIMPORTANT: This is a general recommendation query
 - Present 3-5 different options in your key_points, ALWAYS including both the product name AND SKU for each option (e.g., "Option 1: [Product Name] (SKU 123456) - description"). 
 - Compare them briefly to help the customer choose.
 - Populate the shortlist_items array with the top 3-5 products from the candidate options, including name, hero_feature (one key selling point), price, and stock_indicator if available.` : ''}
-${shortlist_items && shortlist_items.length > 0 ? `\nPre-built shortlist items available: ${JSON.stringify(shortlist_items.map(item => ({ sku: item.sku, name: item.name })))}. Use these in your shortlist_items response.` : ''}
+${shortlist_items && shortlist_items.length > 0 ? `\nPre-built shortlist items available: ${JSON.stringify(shortlist_items.map(item => ({ sku: item.sku, product_name: item.product_name, brand: item.brand, price_value: item.price_value })))}. Use these EXACT items in your shortlist_items response - do not generate new ones.` : ''}
 ${Object.keys(productRecords).length > 0 ? `\nWhen mentioning any SKU in your response, ALWAYS include the corresponding product name from the Product information provided above. Format: "[Product Name] (SKU [number])"` : ''}
 ${compare_list.length > 0 ? `\nIf comparing products, highlight key differences and similarities between the SKUs listed.` : ''}
 
