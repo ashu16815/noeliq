@@ -576,14 +576,37 @@ IMPORTANT:
         } : null),
         sales_script: structuredAnswer.sales_script || { lines: [] },
         coaching_tips: structuredAnswer.coaching_tips || [],
-        customer_voice: structuredAnswer.customer_voice || (web_review_summary ? {
-          overall_sentiment: web_review_summary.overall_sentiment || null,
-          top_pros: Array.isArray(web_review_summary.top_pros) ? web_review_summary.top_pros : [],
-          top_cons: Array.isArray(web_review_summary.top_cons) ? web_review_summary.top_cons : [],
-          best_for: Array.isArray(web_review_summary.best_for) ? web_review_summary.best_for : [],
-          not_ideal_for: Array.isArray(web_review_summary.not_ideal_for) ? web_review_summary.not_ideal_for : [],
-          notable_issues: Array.isArray(web_review_summary.notable_issues) ? web_review_summary.notable_issues : []
-        } : null),
+        customer_voice: (() => {
+          // Ensure customer_voice is always an object with arrays, never null or undefined
+          if (structuredAnswer.customer_voice) {
+            return {
+              overall_sentiment: structuredAnswer.customer_voice.overall_sentiment || null,
+              top_pros: Array.isArray(structuredAnswer.customer_voice.top_pros) ? structuredAnswer.customer_voice.top_pros : [],
+              top_cons: Array.isArray(structuredAnswer.customer_voice.top_cons) ? structuredAnswer.customer_voice.top_cons : [],
+              best_for: Array.isArray(structuredAnswer.customer_voice.best_for) ? structuredAnswer.customer_voice.best_for : [],
+              not_ideal_for: Array.isArray(structuredAnswer.customer_voice.not_ideal_for) ? structuredAnswer.customer_voice.not_ideal_for : [],
+              notable_issues: Array.isArray(structuredAnswer.customer_voice.notable_issues) ? structuredAnswer.customer_voice.notable_issues : [],
+            }
+          } else if (web_review_summary) {
+            return {
+              overall_sentiment: web_review_summary.overall_sentiment || null,
+              top_pros: Array.isArray(web_review_summary.top_pros) ? web_review_summary.top_pros : [],
+              top_cons: Array.isArray(web_review_summary.top_cons) ? web_review_summary.top_cons : [],
+              best_for: Array.isArray(web_review_summary.best_for) ? web_review_summary.best_for : [],
+              not_ideal_for: Array.isArray(web_review_summary.not_ideal_for) ? web_review_summary.not_ideal_for : [],
+              notable_issues: Array.isArray(web_review_summary.notable_issues) ? web_review_summary.notable_issues : [],
+            }
+          } else {
+            return {
+              overall_sentiment: null,
+              top_pros: [],
+              top_cons: [],
+              best_for: [],
+              not_ideal_for: [],
+              notable_issues: [],
+            }
+          }
+        })(),
         comparison_voice: structuredAnswer.comparison_voice || (web_comparison_summary ? {
           enabled: true,
           headline_summary: web_comparison_summary.headline_summary || null,
@@ -809,7 +832,14 @@ IMPORTANT:
       compliance_flags: [],
       product_metadata: null,
       sales_script: { lines: [] },
-      customer_voice: null,
+      customer_voice: {
+        overall_sentiment: null,
+        top_pros: [],
+        top_cons: [],
+        best_for: [],
+        not_ideal_for: [],
+        notable_issues: [],
+      },
       comparison_voice: {
         enabled: false,
         headline_summary: null,
