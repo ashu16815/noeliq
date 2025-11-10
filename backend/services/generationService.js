@@ -777,7 +777,14 @@ IMPORTANT:
       product_metadata: null,
       sales_script: { lines: [] },
       coaching_tips: [],
-      customer_voice: null,
+      customer_voice: {
+        overall_sentiment: null,
+        top_pros: [],
+        top_cons: [],
+        best_for: [],
+        not_ideal_for: [],
+        notable_issues: [],
+      },
       comparison_voice: {
         enabled: false,
         headline_summary: null,
@@ -786,7 +793,6 @@ IMPORTANT:
         tie_or_neutral_areas: [],
         recommendation_by_use_case: []
       },
-      shortlist_items: shortlist_items || [],
       specs_fields: {},
       warranty_summary: null,
       technical_notes: [],
