@@ -11,11 +11,11 @@ export default function CustomerVoicePanel({ customerVoice }: CustomerVoicePanel
   }
 
   const hasContent = 
-    (customerVoice.top_pros && customerVoice.top_pros.length > 0) ||
-    (customerVoice.top_cons && customerVoice.top_cons.length > 0) ||
-    (customerVoice.best_for && customerVoice.best_for.length > 0) ||
-    (customerVoice.not_ideal_for && customerVoice.not_ideal_for.length > 0) ||
-    (customerVoice.notable_issues && customerVoice.notable_issues.length > 0)
+    (customerVoice.top_pros && Array.isArray(customerVoice.top_pros) && customerVoice.top_pros.length > 0) ||
+    (customerVoice.top_cons && Array.isArray(customerVoice.top_cons) && customerVoice.top_cons.length > 0) ||
+    (customerVoice.best_for && Array.isArray(customerVoice.best_for) && customerVoice.best_for.length > 0) ||
+    (customerVoice.not_ideal_for && Array.isArray(customerVoice.not_ideal_for) && customerVoice.not_ideal_for.length > 0) ||
+    (customerVoice.notable_issues && Array.isArray(customerVoice.notable_issues) && customerVoice.notable_issues.length > 0)
 
   if (!hasContent) {
     return null
@@ -35,7 +35,7 @@ export default function CustomerVoicePanel({ customerVoice }: CustomerVoicePanel
 
       <div className="space-y-4">
         {/* Pros */}
-        {customerVoice.top_pros && customerVoice.top_pros.length > 0 && (
+        {customerVoice.top_pros && Array.isArray(customerVoice.top_pros) && customerVoice.top_pros.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle className="w-4 h-4 text-green-600" />
@@ -53,7 +53,7 @@ export default function CustomerVoicePanel({ customerVoice }: CustomerVoicePanel
         )}
 
         {/* Cons */}
-        {customerVoice.top_cons && customerVoice.top_cons.length > 0 && (
+        {customerVoice.top_cons && Array.isArray(customerVoice.top_cons) && customerVoice.top_cons.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-2">
               <XCircle className="w-4 h-4 text-amber-600" />
@@ -71,7 +71,7 @@ export default function CustomerVoicePanel({ customerVoice }: CustomerVoicePanel
         )}
 
         {/* Best For */}
-        {customerVoice.best_for && customerVoice.best_for.length > 0 && (
+        {customerVoice.best_for && Array.isArray(customerVoice.best_for) && customerVoice.best_for.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle className="w-4 h-4 text-blue-600" />
@@ -89,7 +89,7 @@ export default function CustomerVoicePanel({ customerVoice }: CustomerVoicePanel
         )}
 
         {/* Not Ideal For */}
-        {customerVoice.not_ideal_for && customerVoice.not_ideal_for.length > 0 && (
+        {customerVoice.not_ideal_for && Array.isArray(customerVoice.not_ideal_for) && customerVoice.not_ideal_for.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-4 h-4 text-amber-600" />
@@ -107,7 +107,7 @@ export default function CustomerVoicePanel({ customerVoice }: CustomerVoicePanel
         )}
 
         {/* Notable Issues */}
-        {customerVoice.notable_issues && customerVoice.notable_issues.length > 0 && (
+        {customerVoice.notable_issues && Array.isArray(customerVoice.notable_issues) && customerVoice.notable_issues.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-4 h-4 text-red-600" />

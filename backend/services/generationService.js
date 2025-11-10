@@ -578,11 +578,11 @@ IMPORTANT:
         coaching_tips: structuredAnswer.coaching_tips || [],
         customer_voice: structuredAnswer.customer_voice || (web_review_summary ? {
           overall_sentiment: web_review_summary.overall_sentiment || null,
-          top_pros: web_review_summary.top_pros || [],
-          top_cons: web_review_summary.top_cons || [],
-          best_for: web_review_summary.best_for || [],
-          not_ideal_for: web_review_summary.not_ideal_for || [],
-          notable_issues: web_review_summary.notable_issues || []
+          top_pros: Array.isArray(web_review_summary.top_pros) ? web_review_summary.top_pros : [],
+          top_cons: Array.isArray(web_review_summary.top_cons) ? web_review_summary.top_cons : [],
+          best_for: Array.isArray(web_review_summary.best_for) ? web_review_summary.best_for : [],
+          not_ideal_for: Array.isArray(web_review_summary.not_ideal_for) ? web_review_summary.not_ideal_for : [],
+          notable_issues: Array.isArray(web_review_summary.notable_issues) ? web_review_summary.notable_issues : []
         } : null),
         comparison_voice: structuredAnswer.comparison_voice || (web_comparison_summary ? {
           enabled: true,
